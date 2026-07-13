@@ -85,24 +85,84 @@ async function init() {
   const seed = fs.readFileSync(seedPath, 'utf8');
   await pool.query(seed);
   console.log('Seed data applied.');
-  const { rows: uc } = await pool.query('SELECT COUNT(*)::int AS c FROM users');
-  if (intVal(uc[0]?.c) === 0) {
-    const initialPw = process.env.INITIAL_ADMIN_PASSWORD || 'KitchenAdmin!';
-    const hash = bcrypt.hashSync(initialPw, 10);
-    await pool.query(
-      `INSERT INTO users (username, password_hash, display_name, role, full_dashboard)
-       VALUES ($1, $2, $3, 'admin', true)`,
-      ['admin', hash, 'School administrator']
-    );
-    console.log('Default admin user created (username: admin). Set INITIAL_ADMIN_PASSWORD in .env to override default password.');
-    console.log('Default password (change after first login): ' + initialPw);
-  }
+  await ensureKitchenUsers(pool);
   await pool.end();
 }
 
-function intVal(n) {
-  const x = Math.round(Number(n));
-  return Number.isFinite(x) ? x : 0;
+async function getUserColumns(pool) {
+  const { rows } = await pool.query(`
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'users'
+  `);
+  return new Set(rows.map((r) => r.column_name));
+}
+
+async function upsertKitchenUser(pool, columns, user) {
+  const hash = bcrypt.hashSync(user.password, 10);
+  const insertColumns = ['username', 'password_hash', 'display_name', 'role', 'full_dashboard', 'active'];
+  const values = [user.username, hash, user.display_name, user.role, user.full_dashboard, true];
+
+  if (columns.has('email')) {
+    insertColumns.push('email');
+    values.push(user.email || `${user.username}@kitchen.local`);
+  }
+  if (columns.has('full_name')) {
+    insertColumns.push('full_name');
+    values.push(user.display_name);
+  }
+  if (columns.has('is_active')) {
+    insertColumns.push('is_active');
+    values.push(true);
+  }
+
+  const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
+  await pool.query(
+    `INSERT INTO users (${insertColumns.join(', ')})
+     VALUES (${placeholders})
+     ON CONFLICT (username) DO UPDATE SET
+       password_hash = EXCLUDED.password_hash,
+       display_name = EXCLUDED.display_name,
+       role = EXCLUDED.role,
+       full_dashboard = EXCLUDED.full_dashboard,
+       active = true`,
+    values
+  );
+}
+
+async function ensureKitchenUsers(pool) {
+  const columns = await getUserColumns(pool);
+  const initialPw = process.env.INITIAL_ADMIN_PASSWORD || 'KitchenAdmin!';
+  const users = [
+    {
+      username: 'admin',
+      password: initialPw,
+      email: 'admin@kitchen.local',
+      display_name: 'School administrator',
+      role: 'admin',
+      full_dashboard: true,
+    },
+    {
+      username: 'chef_full',
+      password: 'ChefFull1!',
+      display_name: 'Chef (full kitchen)',
+      role: 'chef',
+      full_dashboard: true,
+    },
+    {
+      username: 'chef_ops',
+      password: 'ChefOps1!',
+      display_name: 'Chef (operational)',
+      role: 'chef',
+      full_dashboard: false,
+    },
+  ];
+
+  for (const user of users) {
+    await upsertKitchenUser(pool, columns, user);
+    console.log(`Kitchen user ensured: ${user.username}`);
+  }
+  console.log('Kitchen logins: admin / ' + initialPw + ', chef_full / ChefFull1!, chef_ops / ChefOps1!');
 }
 
 init().catch(err => {
