@@ -81,6 +81,8 @@ async function setup() {
       );
     }
 
+    const seedDemoData = process.env.SEED_DEMO_DATA === 'true';
+    if (seedDemoData) {
     const parentSeed = [
       { parent: 'Rajesh Kumar', phone: '+91 98765 10001', email: 'rajesh.k@email.com', children: [{ name: 'Aarav Kumar', class: 'Grade 5', section: 'A', adm: 'STU-1001' }, { name: 'Ananya Kumar', class: 'Grade 3', section: 'B', adm: 'STU-1002' }] },
       { parent: 'Priya Sharma', phone: '+91 98765 10002', email: 'priya.s@email.com', children: [{ name: 'Isha Sharma', class: 'Grade 8', section: 'A', adm: 'STU-1003' }] },
@@ -170,6 +172,10 @@ async function setup() {
        (1, 'Stock In', '500 units received for White Shirts', 'success')
        ON CONFLICT DO NOTHING`
     );
+
+    } else {
+      console.log('Demo family/order seed skipped. Set SEED_DEMO_DATA=true to load demo records.');
+    }
 
     await pool.query(
       `INSERT INTO settings (key, value) VALUES

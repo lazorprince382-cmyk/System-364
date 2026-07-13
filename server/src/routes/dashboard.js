@@ -5,9 +5,13 @@ const router = Router();
 
 router.get('/stats', async (req, res) => {
   try {
-    const monthStart = new Date();
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
+    const requestedMonth = typeof req.query.month === 'string' ? req.query.month : '';
+    const monthMatch = requestedMonth.match(/^(\d{4})-(\d{2})$/);
+    const now = new Date();
+    const year = monthMatch ? Number(monthMatch[1]) : now.getFullYear();
+    const monthIndex = monthMatch ? Number(monthMatch[2]) - 1 : now.getMonth();
+    const monthStart = new Date(year, monthIndex, 1, 0, 0, 0, 0);
+    const monthEnd = new Date(year, monthIndex + 1, 1, 0, 0, 0, 0);
 
     const [items, stock, lowStock, issuances, collections, overview, lowAlerts, recentIssuances, byCategory, movement, students, parents] =
       await Promise.all([
@@ -17,13 +21,13 @@ router.get('/stats', async (req, res) => {
           'SELECT COUNT(*)::int as count FROM products WHERE current_stock <= min_stock_level'
         ),
         pool.query(
-          `SELECT COUNT(*)::int as count FROM orders WHERE created_at >= $1`,
-          [monthStart]
+          `SELECT COUNT(*)::int as count FROM orders WHERE created_at >= $1 AND created_at < $2`,
+          [monthStart, monthEnd]
         ),
         pool.query(
           `SELECT COALESCE(SUM(total_amount), 0)::numeric as total FROM orders
-           WHERE status = 'completed' AND created_at >= $1`,
-          [monthStart]
+           WHERE status = 'completed' AND created_at >= $1 AND created_at < $2`,
+          [monthStart, monthEnd]
         ),
         pool.query(`
           SELECT c.id, c.name, c.color_code,
@@ -68,8 +72,8 @@ router.get('/stats', async (req, res) => {
             COALESCE(SUM(CASE WHEN quantity > 0 THEN quantity ELSE 0 END), 0)::int as stock_in,
             COALESCE(SUM(CASE WHEN quantity < 0 THEN ABS(quantity) ELSE 0 END), 0)::int as stock_out
           FROM stock_transactions
-          WHERE created_at >= $1
-        `, [monthStart]),
+          WHERE created_at >= $1 AND created_at < $2
+        `, [monthStart, monthEnd]),
         pool.query('SELECT COUNT(*)::int as count FROM students'),
         pool.query('SELECT COUNT(*)::int as count FROM parents'),
       ]);
@@ -113,6 +117,11 @@ router.get('/stats', async (req, res) => {
         totalCollections: parseFloat(collections.rows[0].total),
         enrolledStudents: students.rows[0].count,
         registeredParents: parents.rows[0].count,
+      },
+      period: {
+        month: `${year}-${String(monthIndex + 1).padStart(2, '0')}`,
+        start: monthStart.toISOString(),
+        end: monthEnd.toISOString(),
       },
       categoryOverview,
       lowStockAlerts: lowAlerts.rows,

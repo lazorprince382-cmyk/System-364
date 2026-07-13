@@ -39,7 +39,7 @@ export const api = {
   changePassword: (data) =>
     request('/auth/password', { method: 'PATCH', body: JSON.stringify(data) }),
   dashboard: {
-    stats: () => request('/dashboard/stats'),
+    stats: (month) => request(`/dashboard/stats${month ? `?month=${encodeURIComponent(month)}` : ''}`),
     search: (q) => request(`/dashboard/search?q=${encodeURIComponent(q)}`),
     notifications: () => request('/dashboard/notifications'),
   },

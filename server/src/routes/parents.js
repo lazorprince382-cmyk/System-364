@@ -87,11 +87,19 @@ router.put('/students/:studentId', async (req, res) => {
 });
 
 router.delete('/students/:studentId', async (req, res) => {
+  const client = await pool.connect();
   try {
-    await pool.query('DELETE FROM students WHERE id = $1', [req.params.studentId]);
+    await client.query('BEGIN');
+    await client.query('UPDATE orders SET student_id = NULL WHERE student_id = $1', [req.params.studentId]);
+    await client.query('UPDATE returns SET student_id = NULL WHERE student_id = $1', [req.params.studentId]);
+    await client.query('DELETE FROM students WHERE id = $1', [req.params.studentId]);
+    await client.query('COMMIT');
     res.json({ success: true });
   } catch (err) {
+    await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 

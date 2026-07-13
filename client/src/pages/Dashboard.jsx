@@ -5,12 +5,35 @@ import { api } from '../api';
 import { formatNumber } from '../utils/format';
 
 export default function Dashboard() {
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const [month, setMonth] = useState(currentMonth);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const load = (showSpinner = false) => {
+    if (showSpinner) setLoading(true);
+    return api.dashboard
+      .stats(month)
+      .then(setData)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
   useEffect(() => {
-    api.dashboard.stats().then(setData).catch(console.error).finally(() => setLoading(false));
-  }, []);
+    load(true);
+  }, [month]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (!document.hidden) load(false);
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [month]);
 
   if (loading) {
     return (
@@ -26,9 +49,21 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500">Bursar overview — stock and issuances</p>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-sm text-gray-500">Bursar overview — stock and issuances</p>
+        </div>
+        <label className="text-sm text-gray-600">
+          View month
+          <input
+            type="month"
+            className="input-field mt-1 sm:w-44"
+            value={month}
+            max={currentMonth}
+            onChange={(e) => setMonth(e.target.value || currentMonth)}
+          />
+        </label>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -48,7 +83,7 @@ export default function Dashboard() {
         <MetricCard
           title="Issued to Children"
           value={formatNumber(metrics.totalIssuances)}
-          subtitle="Issuance slips this month"
+          subtitle={`Issuance slips in ${month}`}
           icon={ClipboardList}
           accent="brand"
         />
@@ -86,7 +121,7 @@ export default function Dashboard() {
         </div>
 
         <div className="card p-5">
-          <h2 className="font-semibold text-gray-900 mb-4">Stock Movement (This Month)</h2>
+          <h2 className="font-semibold text-gray-900 mb-4">Stock Movement ({month})</h2>
           <div className="space-y-3">
             <div className="bg-green-50 border border-green-100 rounded-lg p-4">
               <p className="text-sm text-green-700 font-medium">Stock In</p>
