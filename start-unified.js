@@ -1,7 +1,7 @@
 /**
  * Unified Production Starter (No PM2 Required)
  * Spawns both backends and the gateway in a single Node process
- * Suitable for containerized environments like Render
+ * Suitable for containerized environments like Render/Railway
  */
 
 import { spawn } from 'child_process';
@@ -29,14 +29,14 @@ function deriveDatabaseUrl(url, dbName) {
 }
 
 const KITCHEN_DATABASE_URL = (() => {
-  if (process.env.KITCHEN_DATABASE_URL && process.env.KITCHEN_DATABASE_URL !== UNIFORM_DATABASE_URL) {
+  if (process.env.KITCHEN_DATABASE_URL) {
     return process.env.KITCHEN_DATABASE_URL;
   }
-  if (UNIFORM_DATABASE_URL) {
-    console.warn('Warning: using derived kitchen database URL from Uniform DB host; kitchen will use a separate database named kitchen_db.');
-    return deriveDatabaseUrl(UNIFORM_DATABASE_URL, 'kitchen_db');
+  if (process.env.KITCHEN_DATABASE_NAME && UNIFORM_DATABASE_URL) {
+    console.warn(`Warning: using derived kitchen database URL from Uniform DB host; kitchen will use database "${process.env.KITCHEN_DATABASE_NAME}".`);
+    return deriveDatabaseUrl(UNIFORM_DATABASE_URL, process.env.KITCHEN_DATABASE_NAME);
   }
-  return process.env.DATABASE_URL;
+  return UNIFORM_DATABASE_URL;
 })();
 
 function maskDbUrl(url) {
