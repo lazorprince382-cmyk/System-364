@@ -12,6 +12,33 @@ async function setup() {
     await pool.query(schema);
     console.log('Schema created.');
 
+    // Railway shares one PostgreSQL database between Uniform and Kitchen.
+    // If Kitchen's auth columns already exist on the shared users table, keep
+    // them nullable so Uniform seed inserts that only provide email/full_name
+    // do not fail.
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'users'
+            AND column_name = 'username'
+        ) THEN
+          ALTER TABLE users ALTER COLUMN username DROP NOT NULL;
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'users'
+            AND column_name = 'role'
+        ) THEN
+          ALTER TABLE users ALTER COLUMN role DROP NOT NULL;
+        END IF;
+      END $$;
+    `);
+
     const seed = fs.readFileSync(path.join(__dirname, 'seed.sql'), 'utf8');
     await pool.query(seed);
 
