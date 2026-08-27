@@ -1,4 +1,4 @@
-# system-364 — Unified School Systems
+# System-364 — Unified School Systems
 
 Single-platform management for The Ocean of Knowledge School:
 
@@ -6,7 +6,7 @@ Single-platform management for The Ocean of Knowledge School:
 - **Kitchen System** — Meal planning, ingredient management, and budgeting  
 - **Finance Desk** — Income, expenses, vans, mechanical, and fuel  
 
-**GitHub:** https://github.com/lazorprince382-cmyk/system-364
+**GitHub:** https://github.com/lazorprince382-cmyk/System-364
 
 Staff start at the **portal** (`/portal`), choose a system, then sign in to that system only.
 

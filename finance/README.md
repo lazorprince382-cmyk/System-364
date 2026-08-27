@@ -1,6 +1,6 @@
 # Finance Desk — The Ocean of Knowledge School
 
-Part of **[system-364](https://github.com/lazorprince382-cmyk/system-364)** — separate bursar system for school income, expenses, vans, mechanical repairs, and fuel.
+Part of **[System-364](https://github.com/lazorprince382-cmyk/System-364)** — separate bursar system for school income, expenses, vans, mechanical repairs, and fuel.
 
 ## Local setup
 

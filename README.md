@@ -1,4 +1,4 @@
-# system-364
+# System-364
 
 School systems monorepo for **The Ocean of Knowledge School** (*Up With Skills*).
 
@@ -10,7 +10,7 @@ One portal at `/portal` lets staff pick a system and sign in:
 | **Kitchen System** | Meals, stock & prep | http://localhost:3005 | kitchen API on same app |
 | **Finance Desk** | Income, expenses, vans, mechanical, fuel | http://localhost:3010 | http://localhost:5010 |
 
-**Repository:** [github.com/lazorprince382-cmyk/system-364](https://github.com/lazorprince382-cmyk/system-364)
+**Repository:** [github.com/lazorprince382-cmyk/System-364](https://github.com/lazorprince382-cmyk/System-364)
 
 ## Quick start
 
