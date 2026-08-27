@@ -115,8 +115,8 @@ export default function Dashboard() {
             <h3 className="font-semibold">Quick actions</h3>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link to="/income" className="btn-primary">Record income</Link>
-            <Link to="/expenses" className="btn-secondary">Record expense</Link>
+            <Link to="/income" className="btn-primary">Income</Link>
+            <Link to="/expenses" className="btn-secondary">Expenses</Link>
             <Link to="/fuel" className="btn-ghost">Fuel desk</Link>
             <Link to="/mechanical" className="btn-ghost">Mechanical</Link>
             <Link to="/reports" className="btn-ghost">Excel reports</Link>

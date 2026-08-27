@@ -13,16 +13,46 @@ export function authenticate(req, res, next) {
   }
 }
 
+export function publicUser(row) {
+  if (!row) return null;
+  const role = row.role === 'admin' ? 'admin' : 'user';
+  const can_edit = role === 'admin' ? true : !!row.can_edit;
+  return {
+    id: row.id,
+    email: row.email,
+    full_name: row.full_name,
+    role,
+    can_edit,
+    active: row.active !== false,
+    created_at: row.created_at,
+  };
+}
+
 export async function attachUser(req, res, next) {
   try {
     const { rows } = await pool.query(
-      `SELECT id, email, full_name, role, active FROM users WHERE id = $1`,
+      `SELECT id, email, full_name, role, can_edit, active, created_at FROM users WHERE id = $1`,
       [req.user.id]
     );
     if (!rows[0] || !rows[0].active) return res.status(401).json({ error: 'User inactive' });
-    req.userDetails = rows[0];
+    req.userDetails = publicUser(rows[0]);
     next();
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+}
+
+export function requireAdmin(req, res, next) {
+  if (!req.userDetails || req.userDetails.role !== 'admin') {
+    return res.status(403).json({ error: 'Only admins can manage users' });
+  }
+  next();
+}
+
+/** Admins always can edit; staff need can_edit */
+export function requireEdit(req, res, next) {
+  if (!req.userDetails?.can_edit) {
+    return res.status(403).json({ error: 'You have view-only access. Ask an admin for edit permission.' });
+  }
+  next();
 }

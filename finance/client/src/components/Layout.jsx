@@ -77,7 +77,11 @@ export default function Layout() {
         </nav>
         <div className="p-4 border-t border-white/10">
           <p className="text-sm font-medium truncate">{user?.full_name || 'Bursar'}</p>
-          <p className="text-xs text-white/60 truncate mb-3">{user?.email}</p>
+          <p className="text-xs text-white/60 truncate">{user?.email}</p>
+          <p className="text-[10px] uppercase tracking-wide text-white/50 mb-3">
+            {user?.role === 'admin' ? 'Admin' : 'Staff'}
+            {user?.can_edit ? ' · Edit' : ' · View only'}
+          </p>
           <button type="button" onClick={signOut} className="btn-ghost w-full border-white/20 text-white hover:bg-white/10">
             <LogOut className="w-4 h-4" /> Log out
           </button>

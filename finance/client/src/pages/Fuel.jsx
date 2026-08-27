@@ -3,8 +3,10 @@ import { Trash2 } from 'lucide-react';
 import { api } from '../api';
 import { formatUGX, todayISO } from '../config/school';
 import PeriodFilter, { periodParams } from '../components/PeriodFilter';
+import { useAuth } from '../context/AuthContext';
 
 export default function Fuel() {
+  const { canEdit } = useAuth();
   const [vans, setVans] = useState([]);
   const [balance, setBalance] = useState(null);
   const [filter, setFilter] = useState({ period: 'monthly', month: new Date().getMonth() + 1, year: new Date().getFullYear() });
@@ -110,31 +112,33 @@ export default function Fuel() {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {tab === 'income' ? (
-        <div className="grid lg:grid-cols-5 gap-4">
-          <form onSubmit={saveIncome} className="card p-5 lg:col-span-2 space-y-3">
-            <h3 className="font-semibold">Money given for fuel</h3>
-            <div>
-              <label className="label">Amount (UGX)</label>
-              <input className="input-field" type="number" min="0" required value={incomeForm.amount} onChange={(e) => setIncomeForm({ ...incomeForm, amount: e.target.value })} />
-            </div>
-            <div>
-              <label className="label">Date</label>
-              <input className="input-field" type="date" required value={incomeForm.income_date} onChange={(e) => setIncomeForm({ ...incomeForm, income_date: e.target.value })} />
-            </div>
-            <div>
-              <label className="label">Received from</label>
-              <input className="input-field" value={incomeForm.received_from} onChange={(e) => setIncomeForm({ ...incomeForm, received_from: e.target.value })} />
-            </div>
-            <div>
-              <label className="label">Purpose</label>
-              <input className="input-field" value={incomeForm.purpose} onChange={(e) => setIncomeForm({ ...incomeForm, purpose: e.target.value })} />
-            </div>
-            <button type="submit" className="btn-primary w-full">Save fuel income</button>
-          </form>
-          <div className="card p-5 lg:col-span-3 overflow-x-auto">
+        <div className={`grid gap-4 ${canEdit ? 'lg:grid-cols-5' : ''}`}>
+          {canEdit && (
+            <form onSubmit={saveIncome} className="card p-5 lg:col-span-2 space-y-3">
+              <h3 className="font-semibold">Money given for fuel</h3>
+              <div>
+                <label className="label">Amount (UGX)</label>
+                <input className="input-field" type="number" min="0" required value={incomeForm.amount} onChange={(e) => setIncomeForm({ ...incomeForm, amount: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">Date</label>
+                <input className="input-field" type="date" required value={incomeForm.income_date} onChange={(e) => setIncomeForm({ ...incomeForm, income_date: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">Received from</label>
+                <input className="input-field" value={incomeForm.received_from} onChange={(e) => setIncomeForm({ ...incomeForm, received_from: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">Purpose</label>
+                <input className="input-field" value={incomeForm.purpose} onChange={(e) => setIncomeForm({ ...incomeForm, purpose: e.target.value })} />
+              </div>
+              <button type="submit" className="btn-primary w-full">Save fuel income</button>
+            </form>
+          )}
+          <div className={`card p-5 overflow-x-auto ${canEdit ? 'lg:col-span-3' : ''}`}>
             <table className="data-table">
               <thead>
-                <tr><th>Date</th><th>From</th><th>Amount</th><th></th></tr>
+                <tr><th>Date</th><th>From</th><th>Amount</th>{canEdit && <th></th>}</tr>
               </thead>
               <tbody>
                 {incomeRows.map((r) => (
@@ -142,11 +146,13 @@ export default function Fuel() {
                     <td>{String(r.income_date).slice(0, 10)}</td>
                     <td>{r.received_from || '—'}</td>
                     <td className="font-semibold text-emerald-700">{formatUGX(r.amount)}</td>
-                    <td>
-                      <button type="button" className="btn-ghost px-2 text-red-600" onClick={() => api.fuel.incomeRemove(r.id).then(load)}>
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
+                    {canEdit && (
+                      <td>
+                        <button type="button" className="btn-ghost px-2 text-red-600" onClick={() => api.fuel.incomeRemove(r.id).then(load).catch((e) => setError(e.message))}>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -154,38 +160,40 @@ export default function Fuel() {
           </div>
         </div>
       ) : (
-        <div className="grid lg:grid-cols-5 gap-4">
-          <form onSubmit={saveExpense} className="card p-5 lg:col-span-2 space-y-3">
-            <h3 className="font-semibold">Fuel used by van</h3>
-            <div>
-              <label className="label">Van</label>
-              <select className="input-field" required value={expenseForm.van_id} onChange={(e) => setExpenseForm({ ...expenseForm, van_id: e.target.value })}>
-                {vans.map((v) => (
-                  <option key={v.id} value={v.id}>{v.name} — {v.plate_number}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="label">Amount (UGX)</label>
-              <input className="input-field" type="number" min="0" required value={expenseForm.amount} onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })} />
-            </div>
-            <div>
-              <label className="label">Date</label>
-              <input className="input-field" type="date" required value={expenseForm.expense_date} onChange={(e) => setExpenseForm({ ...expenseForm, expense_date: e.target.value })} />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
+        <div className={`grid gap-4 ${canEdit ? 'lg:grid-cols-5' : ''}`}>
+          {canEdit && (
+            <form onSubmit={saveExpense} className="card p-5 lg:col-span-2 space-y-3">
+              <h3 className="font-semibold">Fuel used by van</h3>
               <div>
-                <label className="label">Litres</label>
-                <input className="input-field" type="number" step="0.01" value={expenseForm.litres} onChange={(e) => setExpenseForm({ ...expenseForm, litres: e.target.value })} />
+                <label className="label">Van</label>
+                <select className="input-field" required value={expenseForm.van_id} onChange={(e) => setExpenseForm({ ...expenseForm, van_id: e.target.value })}>
+                  {vans.map((v) => (
+                    <option key={v.id} value={v.id}>{v.name} — {v.plate_number}</option>
+                  ))}
+                </select>
               </div>
               <div>
-                <label className="label">Odometer</label>
-                <input className="input-field" type="number" value={expenseForm.odometer} onChange={(e) => setExpenseForm({ ...expenseForm, odometer: e.target.value })} />
+                <label className="label">Amount (UGX)</label>
+                <input className="input-field" type="number" min="0" required value={expenseForm.amount} onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })} />
               </div>
-            </div>
-            <button type="submit" className="btn-secondary w-full">Save fuel expense</button>
-          </form>
-          <div className="card p-5 lg:col-span-3 space-y-3">
+              <div>
+                <label className="label">Date</label>
+                <input className="input-field" type="date" required value={expenseForm.expense_date} onChange={(e) => setExpenseForm({ ...expenseForm, expense_date: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="label">Litres</label>
+                  <input className="input-field" type="number" step="0.01" value={expenseForm.litres} onChange={(e) => setExpenseForm({ ...expenseForm, litres: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Odometer</label>
+                  <input className="input-field" type="number" value={expenseForm.odometer} onChange={(e) => setExpenseForm({ ...expenseForm, odometer: e.target.value })} />
+                </div>
+              </div>
+              <button type="submit" className="btn-secondary w-full">Save fuel expense</button>
+            </form>
+          )}
+          <div className={`card p-5 space-y-3 ${canEdit ? 'lg:col-span-3' : ''}`}>
             <div>
               <label className="label">Show van</label>
               <select className="input-field max-w-xs" value={vanId} onChange={(e) => setVanId(e.target.value)}>
@@ -198,7 +206,7 @@ export default function Fuel() {
             <div className="overflow-x-auto">
               <table className="data-table">
                 <thead>
-                  <tr><th>Date</th><th>Van</th><th>Litres</th><th>Amount</th><th></th></tr>
+                  <tr><th>Date</th><th>Van</th><th>Litres</th><th>Amount</th>{canEdit && <th></th>}</tr>
                 </thead>
                 <tbody>
                   {expenseRows.map((r) => (
@@ -207,11 +215,13 @@ export default function Fuel() {
                       <td>{r.van_name}<div className="text-xs muted">{r.plate_number}</div></td>
                       <td>{r.litres ?? '—'}</td>
                       <td className="font-semibold text-red-700">{formatUGX(r.amount)}</td>
-                      <td>
-                        <button type="button" className="btn-ghost px-2 text-red-600" onClick={() => api.fuel.expensesRemove(r.id).then(load)}>
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
+                      {canEdit && (
+                        <td>
+                          <button type="button" className="btn-ghost px-2 text-red-600" onClick={() => api.fuel.expensesRemove(r.id).then(load).catch((e) => setError(e.message))}>
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

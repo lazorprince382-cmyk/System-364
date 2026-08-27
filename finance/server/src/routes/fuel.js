@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import pool from '../db/pool.js';
 import { periodBounds, resolveTermBounds, money } from '../lib/period.js';
+import { requireEdit } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -48,7 +49,7 @@ router.get('/income', async (req, res) => {
   }
 });
 
-router.post('/income', async (req, res) => {
+router.post('/income', requireEdit, async (req, res) => {
   try {
     const amount = money(req.body.amount);
     const income_date = req.body.income_date || req.body.date;
@@ -106,7 +107,7 @@ router.get('/expenses', async (req, res) => {
   }
 });
 
-router.post('/expenses', async (req, res) => {
+router.post('/expenses', requireEdit, async (req, res) => {
   try {
     const amount = money(req.body.amount);
     const expense_date = req.body.expense_date || req.body.date;
@@ -133,7 +134,7 @@ router.post('/expenses', async (req, res) => {
   }
 });
 
-router.delete('/income/:id', async (req, res) => {
+router.delete('/income/:id', requireEdit, async (req, res) => {
   try {
     await pool.query('DELETE FROM fuel_income WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
@@ -142,7 +143,7 @@ router.delete('/income/:id', async (req, res) => {
   }
 });
 
-router.delete('/expenses/:id', async (req, res) => {
+router.delete('/expenses/:id', requireEdit, async (req, res) => {
   try {
     await pool.query('DELETE FROM fuel_expenses WHERE id = $1', [req.params.id]);
     res.json({ ok: true });

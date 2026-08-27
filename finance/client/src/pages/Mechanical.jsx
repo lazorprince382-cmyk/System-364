@@ -4,8 +4,10 @@ import { Trash2 } from 'lucide-react';
 import { api } from '../api';
 import { formatUGX, todayISO } from '../config/school';
 import PeriodFilter, { filterFromSearchParams, periodParams } from '../components/PeriodFilter';
+import { useAuth } from '../context/AuthContext';
 
 export default function Mechanical() {
+  const { canEdit } = useAuth();
   const [searchParams] = useSearchParams();
   const [vans, setVans] = useState([]);
   const [filter, setFilter] = useState(() => filterFromSearchParams(searchParams));
@@ -76,43 +78,46 @@ export default function Mechanical() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-5 gap-4">
-        <form onSubmit={submit} className="card p-5 lg:col-span-2 space-y-3">
-          <h3 className="font-semibold">New mechanical expense</h3>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <div>
-            <label className="label">Van</label>
-            <select className="input-field" required value={form.van_id} onChange={(e) => setForm({ ...form, van_id: e.target.value })}>
-              <option value="">Select van</option>
-              {vans.map((v) => (
-                <option key={v.id} value={v.id}>{v.name} — {v.plate_number}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="label">Amount (UGX)</label>
-            <input className="input-field" type="number" min="0" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-          </div>
-          <div>
-            <label className="label">Date</label>
-            <input className="input-field" type="date" required value={form.expense_date} onChange={(e) => setForm({ ...form, expense_date: e.target.value })} />
-          </div>
-          <div>
-            <label className="label">Purpose</label>
-            <input className="input-field" required value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} placeholder="e.g. Brake pads replaced" />
-          </div>
-          <div>
-            <label className="label">Work type</label>
-            <input className="input-field" value={form.work_type} onChange={(e) => setForm({ ...form, work_type: e.target.value })} placeholder="Service / tyres / engine…" />
-          </div>
-          <div>
-            <label className="label">Taken by</label>
-            <input className="input-field" value={form.taken_by} onChange={(e) => setForm({ ...form, taken_by: e.target.value })} />
-          </div>
-          <button type="submit" className="btn-primary w-full">Save</button>
-        </form>
+      <div className={`grid gap-4 ${canEdit ? 'lg:grid-cols-5' : ''}`}>
+        {canEdit && (
+          <form onSubmit={submit} className="card p-5 lg:col-span-2 space-y-3">
+            <h3 className="font-semibold">New mechanical expense</h3>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <div>
+              <label className="label">Van</label>
+              <select className="input-field" required value={form.van_id} onChange={(e) => setForm({ ...form, van_id: e.target.value })}>
+                <option value="">Select van</option>
+                {vans.map((v) => (
+                  <option key={v.id} value={v.id}>{v.name} — {v.plate_number}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Amount (UGX)</label>
+              <input className="input-field" type="number" min="0" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">Date</label>
+              <input className="input-field" type="date" required value={form.expense_date} onChange={(e) => setForm({ ...form, expense_date: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">Purpose</label>
+              <input className="input-field" required value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} placeholder="e.g. Brake pads replaced" />
+            </div>
+            <div>
+              <label className="label">Work type</label>
+              <input className="input-field" value={form.work_type} onChange={(e) => setForm({ ...form, work_type: e.target.value })} placeholder="Service / tyres / engine…" />
+            </div>
+            <div>
+              <label className="label">Taken by</label>
+              <input className="input-field" value={form.taken_by} onChange={(e) => setForm({ ...form, taken_by: e.target.value })} />
+            </div>
+            <button type="submit" className="btn-primary w-full">Save</button>
+          </form>
+        )}
 
-        <div className="card p-5 lg:col-span-3 overflow-x-auto">
+        <div className={`card p-5 overflow-x-auto ${canEdit ? 'lg:col-span-3' : ''}`}>
+          {!canEdit && error && <p className="text-sm text-red-600 mb-3">{error}</p>}
           <table className="data-table">
             <thead>
               <tr>
@@ -120,7 +125,7 @@ export default function Mechanical() {
                 <th>Van</th>
                 <th>Purpose</th>
                 <th>Amount</th>
-                <th></th>
+                {canEdit && <th></th>}
               </tr>
             </thead>
             <tbody>
@@ -136,15 +141,17 @@ export default function Mechanical() {
                     {r.work_type && <div className="text-xs muted">{r.work_type}</div>}
                   </td>
                   <td className="font-semibold">{formatUGX(r.amount)}</td>
-                  <td>
-                    <button type="button" className="btn-ghost px-2 text-red-600" onClick={() => api.mechanical.remove(r.id).then(load)}>
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </td>
+                  {canEdit && (
+                    <td>
+                      <button type="button" className="btn-ghost px-2 text-red-600" onClick={() => api.mechanical.remove(r.id).then(load).catch((e) => setError(e.message))}>
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
               {!rows.length && (
-                <tr><td colSpan={5} className="muted text-center py-8">No mechanical costs in this filter.</td></tr>
+                <tr><td colSpan={canEdit ? 5 : 4} className="muted text-center py-8">No mechanical costs in this filter.</td></tr>
               )}
             </tbody>
           </table>

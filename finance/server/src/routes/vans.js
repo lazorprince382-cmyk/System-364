@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import pool from '../db/pool.js';
+import { requireEdit } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -14,7 +15,7 @@ router.get('/', async (_req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requireEdit, async (req, res) => {
   try {
     const plate = String(req.body.plate_number || '').trim().toUpperCase();
     const name = String(req.body.name || '').trim();
@@ -31,7 +32,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', requireEdit, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `UPDATE vans SET

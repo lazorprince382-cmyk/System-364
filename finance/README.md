@@ -27,4 +27,4 @@ From the school portal (`http://localhost:3000/portal`), choose **Finance Desk**
 - **Fuel** — fuel fund income + per-van fuel spend + balance  
 - **Search** — global search + Excel export of results  
 - **Reports** — Excel workbooks (all / income / expenses / mechanical / fuel)  
-- **Settings** — Ocean, Dark, Forest, Sunset themes (shared `toks-theme` key with Uniform)
+- **Settings** — themes + **user logins** (admins create staff, set **Can edit** / view-only, activate accounts)

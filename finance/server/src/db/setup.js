@@ -51,10 +51,13 @@ async function setup() {
       email VARCHAR(255) UNIQUE NOT NULL,
       full_name VARCHAR(255) NOT NULL,
       password_hash TEXT NOT NULL,
-      role VARCHAR(50) NOT NULL DEFAULT 'bursar',
+      role VARCHAR(50) NOT NULL DEFAULT 'user',
+      can_edit BOOLEAN NOT NULL DEFAULT true,
       active BOOLEAN NOT NULL DEFAULT true,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS can_edit BOOLEAN NOT NULL DEFAULT true;
 
     CREATE TABLE IF NOT EXISTS income (
       id SERIAL PRIMARY KEY,
@@ -137,9 +140,12 @@ async function setup() {
 
   const hash = await bcrypt.hash('admin123', 10);
   await pool.query(
-    `INSERT INTO users (email, full_name, password_hash, role)
-     VALUES ($1, $2, $3, 'bursar')
-     ON CONFLICT (email) DO UPDATE SET full_name = EXCLUDED.full_name`,
+    `INSERT INTO users (email, full_name, password_hash, role, can_edit)
+     VALUES ($1, $2, $3, 'admin', true)
+     ON CONFLICT (email) DO UPDATE SET
+       full_name = EXCLUDED.full_name,
+       role = 'admin',
+       can_edit = true`,
     ['bursar@toks.com', 'School Bursar', hash]
   );
 

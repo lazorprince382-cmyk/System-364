@@ -39,6 +39,11 @@ export const api = {
   login: (email, password) =>
     request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   me: () => request('/auth/me'),
+  users: {
+    list: () => request('/users'),
+    create: (data) => request('/users', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id, data) => request(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  },
   summary: () => request('/dashboard/summary'),
   terms: () => request('/dashboard/terms'),
   search: (q) => request(`/dashboard/search${qs({ q })}`),

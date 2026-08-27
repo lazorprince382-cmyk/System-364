@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import pool from '../db/pool.js';
 import { periodBounds, resolveTermBounds, money } from '../lib/period.js';
+import { requireEdit } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -48,7 +49,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requireEdit, async (req, res) => {
   try {
     const amount = money(req.body.amount);
     const expense_date = req.body.expense_date || req.body.date;
@@ -77,7 +78,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireEdit, async (req, res) => {
   try {
     await pool.query('DELETE FROM van_mechanical WHERE id = $1', [req.params.id]);
     res.json({ ok: true });

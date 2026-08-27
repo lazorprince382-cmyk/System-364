@@ -3,8 +3,10 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { authenticate } from './middleware/auth.js';
+import { authenticate, attachUser } from './middleware/auth.js';
+import { ensureUserPermissions } from './db/ensure-permissions.js';
 import authRoutes from './routes/auth.js';
+import usersRoutes from './routes/users.js';
 import incomeRoutes from './routes/income.js';
 import expenseRoutes from './routes/expenses.js';
 import vansRoutes from './routes/vans.js';
@@ -27,13 +29,14 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
-app.use('/api/dashboard', authenticate, dashboardRoutes);
-app.use('/api/income', authenticate, incomeRoutes);
-app.use('/api/expenses', authenticate, expenseRoutes);
-app.use('/api/vans', authenticate, vansRoutes);
-app.use('/api/mechanical', authenticate, mechanicalRoutes);
-app.use('/api/fuel', authenticate, fuelRoutes);
-app.use('/api/reports', authenticate, reportsRoutes);
+app.use('/api/users', authenticate, usersRoutes);
+app.use('/api/dashboard', authenticate, attachUser, dashboardRoutes);
+app.use('/api/income', authenticate, attachUser, incomeRoutes);
+app.use('/api/expenses', authenticate, attachUser, expenseRoutes);
+app.use('/api/vans', authenticate, attachUser, vansRoutes);
+app.use('/api/mechanical', authenticate, attachUser, mechanicalRoutes);
+app.use('/api/fuel', authenticate, attachUser, fuelRoutes);
+app.use('/api/reports', authenticate, attachUser, reportsRoutes);
 
 const clientDist = path.resolve(__dirname, '../../client/dist');
 app.use(express.static(clientDist));
@@ -44,6 +47,14 @@ app.get('*', (req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ Finance API listening on http://localhost:${PORT}`);
+async function start() {
+  await ensureUserPermissions();
+  app.listen(PORT, () => {
+    console.log(`✅ Finance API listening on http://localhost:${PORT}`);
+  });
+}
+
+start().catch((err) => {
+  console.error(err);
+  process.exit(1);
 });
