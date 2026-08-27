@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, BookOpen, Eye, EyeOff, GraduationCap, Lock, Mail, Users } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SCHOOL } from '../config/school';
 
 const REMEMBER_KEYS = {
   uniform: 'toks_login_uniform_id',
   kitchen: 'toks_login_kitchen_id',
+  finance: 'toks_login_finance_id',
 };
 
 /**
@@ -25,74 +26,57 @@ const KITCHEN_BASE_URL =
     ? kitchenUrlCandidate.replace(/\/+$/, '')
     : `${window.location.origin}/kitchen`;
 
+/** Finance Desk — local Vite on 3010, or VITE_FINANCE_URL / /finance in production */
+const financeEnvUrl = import.meta.env.VITE_FINANCE_URL;
+const financeUrlCandidate = financeEnvUrl && String(financeEnvUrl).trim();
+const isValidFinanceUrl =
+  financeUrlCandidate &&
+  !financeUrlCandidate.includes('your-app') &&
+  /^https?:\/\//.test(financeUrlCandidate);
+const FINANCE_BASE_URL = isValidFinanceUrl
+  ? financeUrlCandidate.replace(/\/+$/, '')
+  : window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3010'
+    : `${window.location.origin}/finance`;
+
 const HEALTH_TIMEOUT_MS = 2200;
-
-const FEATURES = [
-  {
-    icon: GraduationCap,
-    title: 'Quality Education',
-    desc: 'Building futures with knowledge & values',
-  },
-  {
-    icon: Users,
-    title: 'Skilled Teachers',
-    desc: 'Experienced educators committed to excellence',
-  },
-  {
-    icon: BookOpen,
-    title: 'Bright Future',
-    desc: 'Nurturing leaders of tomorrow',
-  },
-];
-
-function WaveDivider() {
-  return (
-    <svg
-      className="login-wave"
-      viewBox="0 0 80 1000"
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      <path
-        fill="#152a5e"
-        d="M0,0 C48,120 20,220 56,340 C12,460 60,560 36,680 C16,800 52,900 0,1000 L0,1000 L0,0 Z"
-      />
-      <path
-        fill="#c41e3a"
-        d="M58,0 L68,0 L76,500 L68,1000 L58,1000 C62,750 62,250 58,0 Z"
-      />
-    </svg>
-  );
-}
 
 export default function Login() {
   const [email, setEmail] = useState('bursar@toks.com');
   const [password, setPassword] = useState('admin123');
   const [remember, setRemember] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const [system, setSystem] = useState('uniform');
-  const [systemHealth, setSystemHealth] = useState({
-    uniform: 'checking',
-    kitchen: 'checking',
-  });
+  const [system, setSystem] = useState(null);
+  const [systemOnline, setSystemOnline] = useState('checking');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  const deskTitle =
+    system === 'kitchen'
+      ? 'Kitchen System'
+      : system === 'finance'
+        ? 'Finance Desk'
+        : 'Uniform Desk';
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const requested = params.get('system');
-    if (requested === 'kitchen' || requested === 'uniform') {
+    if (requested === 'kitchen' || requested === 'uniform' || requested === 'finance') {
       setSystem(requested);
       setError('');
+    } else {
+      navigate('/portal', { replace: true });
+      return;
     }
     if (params.get('reason') === 'timeout') {
       setError('You were signed out after 10 minutes of inactivity.');
     }
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
+    if (!system) return;
     const key = REMEMBER_KEYS[system];
     const saved = localStorage.getItem(key);
     if (saved) {
@@ -104,7 +88,9 @@ export default function Login() {
   }, [system]);
 
   useEffect(() => {
+    if (!system) return;
     let alive = true;
+
     const pingWithTimeout = async (url) => {
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), HEALTH_TIMEOUT_MS);
@@ -118,15 +104,14 @@ export default function Login() {
       }
     };
 
-    const pingKitchenApi = async () => {
+    const pingServiceApi = async (baseUrl, serviceName) => {
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), HEALTH_TIMEOUT_MS);
       try {
-        const kitchenHealth = `${KITCHEN_BASE_URL}/api/health`;
-        const res = await fetch(kitchenHealth, { signal: ctrl.signal });
+        const res = await fetch(`${baseUrl}/api/health`, { signal: ctrl.signal });
         if (!res.ok) return false;
         const data = await res.json().catch(() => null);
-        return !!(data && (data.status === 'ok' || data.service === 'kitchen'));
+        return !!(data && (data.status === 'ok' || data.service === serviceName));
       } catch {
         return false;
       } finally {
@@ -135,16 +120,12 @@ export default function Login() {
     };
 
     const check = async () => {
-      const [uniformOk, kitchenOk] = await Promise.all([
-        pingWithTimeout('/api/health'),
-        pingKitchenApi(),
-      ]);
+      let ok = false;
+      if (system === 'uniform') ok = await pingWithTimeout('/api/health');
+      else if (system === 'kitchen') ok = await pingServiceApi(KITCHEN_BASE_URL, 'kitchen');
+      else if (system === 'finance') ok = await pingServiceApi(FINANCE_BASE_URL, 'finance');
       if (!alive) return;
-      setSystemHealth({
-        uniform: uniformOk ? 'online' : 'offline',
-        kitchen: kitchenOk ? 'online' : 'offline',
-      });
-      if (!uniformOk && kitchenOk) setSystem('kitchen');
+      setSystemOnline(ok ? 'online' : 'offline');
     };
 
     check();
@@ -153,13 +134,13 @@ export default function Login() {
       alive = false;
       clearInterval(i);
     };
-  }, []);
+  }, [system]);
 
   const doLogin = async (emailToUse = email) => {
     setError('');
     setLoading(true);
     try {
-      if (systemHealth.uniform === 'offline') {
+      if (systemOnline === 'offline') {
         throw new Error('Uniform server is offline. Start the server and try again.');
       }
       await login(emailToUse, password);
@@ -178,7 +159,7 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      if (systemHealth.kitchen !== 'online') {
+      if (systemOnline === 'offline') {
         throw new Error('Kitchen server is offline. Start kitchen system and try again.');
       }
       
@@ -236,196 +217,153 @@ export default function Login() {
     }
   };
 
+  const doFinanceLogin = async (emailToUse = email) => {
+    setError('');
+    setLoading(true);
+    try {
+      if (systemOnline === 'offline') {
+        throw new Error('Finance server is offline. Start Finance Desk (port 3010/5010) and try again.');
+      }
+      const res = await fetch(`${FINANCE_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: String(emailToUse || '').trim(),
+          password,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Finance login failed');
+      if (!data.token) throw new Error('Finance login did not return a token');
+
+      localStorage.setItem('finance_token', data.token);
+      const key = REMEMBER_KEYS.finance;
+      if (remember) localStorage.setItem(key, emailToUse);
+      else localStorage.removeItem(key);
+
+      window.location.assign(`${FINANCE_BASE_URL}/`);
+    } catch (err) {
+      setError(err.message || 'Finance login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (system === 'kitchen') doKitchenLogin(email);
+    else if (system === 'finance') doFinanceLogin(email);
     else doLogin(email);
   };
 
+  if (!system) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f4f6fb]">
+        <div className="animate-spin w-8 h-8 border-4 border-school-red border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
   return (
-    <div className="login-page">
-      <div className="login-split">
-        <div className="login-split-left">
-          <div className="login-split-photo-wrap">
-            <img
-              src={SCHOOL.loginCampusUrl}
-              alt={`${SCHOOL.name} campus`}
-              className="login-split-photo"
-            />
-          </div>
-          <div className="login-split-features">
-            {FEATURES.map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="login-feature">
-                <div className="login-feature-icon">
-                  <Icon className="w-5 h-5" strokeWidth={1.75} />
-                </div>
-                <p className="login-feature-title">{title}</p>
-                <p className="login-feature-desc">{desc}</p>
-              </div>
-            ))}
-          </div>
-          <WaveDivider />
+    <div className="system-login-page">
+      <div className="system-login-bg" aria-hidden>
+        <img src={SCHOOL.staffTeamUrl} alt="" className="system-login-bg-img" />
+        <div className="system-login-bg-blur" />
+      </div>
+      <a href="/portal" className="system-login-back">
+        ← All systems
+      </a>
+      <div className="system-login-card">
+        <div className="text-center mb-8">
+          <img
+            className="system-login-logo"
+            src={`${SCHOOL.logoUrl}?v=3`}
+            alt={SCHOOL.name}
+          />
+          <h1 className="login-brand-title">{SCHOOL.name}</h1>
+          <p className="login-brand-motto">{SCHOOL.motto}</p>
+          <p className="login-brand-desk mt-2">{deskTitle}</p>
         </div>
 
-        <div className="login-split-right">
-          <div className="login-split-right-inner">
-            <div className="login-card">
-            <div className="flex flex-col items-center mb-8 mt-3 text-center">
-              <img
-                src={SCHOOL.logoUrl}
-                alt={SCHOOL.name}
-                className="w-24 h-24 sm:w-28 sm:h-28 object-contain mb-4"
+        <form onSubmit={handleSubmit} className="space-y-4 w-full">
+          {error && (
+            <div
+              className="bg-red-50 text-sm p-3 rounded-xl border border-red-100"
+              style={{ color: '#c41e3a' }}
+            >
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="login-email" className="login-field-label">
+              {system === 'kitchen' ? 'Username' : 'Email'}
+            </label>
+            <div className="login-input-wrap login-input-wrap-dark">
+              <Mail className="login-input-icon" strokeWidth={2} />
+              <input
+                id="login-email"
+                type={system === 'kitchen' ? 'text' : 'email'}
+                className="login-input login-input-dark"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (error) setError('');
+                }}
+                required
+                autoComplete={system === 'kitchen' ? 'username' : 'email'}
+                placeholder={system === 'kitchen' ? 'e.g. chef_full' : 'e.g. bursar@toks.com'}
               />
-              <h1 className="login-brand-title">{SCHOOL.name}</h1>
-              <p className="login-brand-motto">{SCHOOL.motto}</p>
-              <p className="login-brand-est">{SCHOOL.established}</p>
-              <p className="login-brand-desk">{SCHOOL.deskTitle}</p>
             </div>
+            {system === 'kitchen' && (
+              <p className="text-xs text-gray-500 mt-1">
+                Use your kitchen account username (e.g. <strong>chef_full</strong>).
+              </p>
+            )}
+          </div>
 
-            <div className="mb-5">
-              <p className="login-system-label">Choose system</p>
-              <div className="login-system-switch" role="tablist" aria-label="Choose system">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={system === 'uniform'}
-                  aria-pressed={system === 'uniform'}
-                  disabled={systemHealth.uniform === 'offline'}
-                  className={`login-system-btn ${system === 'uniform' ? 'login-system-btn-active' : ''}`}
-                  onClick={() => {
-                    setSystem('uniform');
-                    setError('');
-                    const saved = localStorage.getItem(REMEMBER_KEYS.uniform);
-                    setEmail(saved || 'bursar@toks.com');
-                  }}
-                >
-                  Uniform Desk
-                  <span className={`login-system-pill login-system-pill-${systemHealth.uniform}`}>
-                    {systemHealth.uniform}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={system === 'kitchen'}
-                  aria-pressed={system === 'kitchen'}
-                  disabled={systemHealth.kitchen === 'offline'}
-                  className={`login-system-btn ${system === 'kitchen' ? 'login-system-btn-active' : ''}`}
-                  onClick={() => {
-                    setSystem('kitchen');
-                    setError('');
-                    const saved = localStorage.getItem(REMEMBER_KEYS.kitchen);
-                    setEmail(saved || 'chef_full');
-                  }}
-                >
-                  Kitchen System
-                  <span className={`login-system-pill login-system-pill-${systemHealth.kitchen}`}>
-                    {systemHealth.kitchen}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4 w-full">
-              {error && (
-                <div
-                  className="bg-red-50 text-sm p-3 rounded-lg border border-red-100"
-                  style={{ color: '#c41e3a' }}
-                >
-                  {error}
-                </div>
-              )}
-
-              <div>
-                <label htmlFor="login-email" className="login-field-label">
-                  {system === 'kitchen' ? 'Username' : 'Email'}
-                </label>
-                <div className="login-input-wrap">
-                  <Mail className="login-input-icon" strokeWidth={2} />
-                  <input
-                    id="login-email"
-                    type={system === 'kitchen' ? 'text' : 'email'}
-                    className="login-input"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      if (error) setError('');
-                    }}
-                    required
-                    autoComplete={system === 'kitchen' ? 'username' : 'email'}
-                    placeholder={system === 'kitchen' ? 'e.g. chef_full' : 'e.g. bursar@toks.com'}
-                  />
-                </div>
-                {system === 'kitchen' && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Use your kitchen account username (e.g. <strong>chef_full</strong>).
-                  </p>
+          <div>
+            <label htmlFor="login-password" className="login-field-label">
+              Password
+            </label>
+            <div className="login-input-wrap login-input-wrap-dark">
+              <Lock className="login-input-icon" strokeWidth={2} />
+              <input
+                id="login-password"
+                type={showPassword ? 'text' : 'password'}
+                className="login-input login-input-dark"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (error) setError('');
+                }}
+                required
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                className="login-input-toggle"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <EyeOff className="w-[18px] h-[18px]" />
+                ) : (
+                  <Eye className="w-[18px] h-[18px]" />
                 )}
-              </div>
-
-              <div>
-                <label htmlFor="login-password" className="login-field-label">
-                  Password
-                </label>
-                <div className="login-input-wrap">
-                  <Lock className="login-input-icon" strokeWidth={2} />
-                  <input
-                    id="login-password"
-                    type={showPassword ? 'text' : 'password'}
-                    className="login-input"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      if (error) setError('');
-                    }}
-                    required
-                    autoComplete="current-password"
-                  />
-                  <button
-                    type="button"
-                    className="login-input-toggle"
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-[18px] h-[18px]" />
-                    ) : (
-                      <Eye className="w-[18px] h-[18px]" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between gap-3 pt-1">
-                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    className="login-remember rounded border-gray-300"
-                    checked={remember}
-                    onChange={(e) => setRemember(e.target.checked)}
-                  />
-                  Remember me
-                </label>
-                <button
-                  type="button"
-                  className="login-forgot"
-                  onClick={() =>
-                    alert('Please contact the school administrator to reset your password.')
-                  }
-                >
-                  Forgot password?
-                </button>
-              </div>
-
-              <button type="submit" className="login-btn-signin mt-2" disabled={loading}>
-                {loading ? 'Signing in…' : 'Sign In'}
-                {!loading && <ArrowRight className="w-4 h-4" />}
               </button>
-            </form>
-
             </div>
           </div>
-        </div>
+
+          <button
+            type="submit"
+            className="login-btn-signin mt-2"
+            disabled={loading || systemOnline === 'offline'}
+          >
+            {loading ? 'Signing in…' : 'Sign In'}
+            {!loading && <ArrowRight className="w-4 h-4" />}
+          </button>
+        </form>
       </div>
     </div>
   );

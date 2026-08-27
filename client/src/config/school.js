@@ -6,5 +6,6 @@ export const SCHOOL = {
   established: 'Est. 2025',
   logoUrl: '/images/school-logo.png',
   loginCampusUrl: '/images/login-campus.png',
+  staffTeamUrl: '/images/staff-team.png',
   deskTitle: 'Uniform Desk',
 };

@@ -38,16 +38,30 @@ app.use('/api/uniform-history', authenticate, uniformHistoryRoutes);
 app.use('/api/reports', authenticate, reportsRoutes);
 app.use('/api/system', authenticate, systemRoutes);
 
-app.get('/api/health', (_, res) => res.json({ status: 'ok' }));
+app.get('/api/health', (_req, res) => {
+  res.status(200).json({ status: 'ok', service: 'uniform' });
+});
+
+// Global error handler for unhandled rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
 
 // Schema check (should not fail since setup runs before server starts)
 ensureGenderSchema()
   .then(() => {
     app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+      console.log(`✅ Uniform server listening on http://localhost:${PORT}`);
+      console.log(`📡 Health endpoint: http://localhost:${PORT}/api/health`);
     });
   })
   .catch((err) => {
-    console.error('Database gender schema check failed:', err.message);
+    console.error('❌ Database gender schema check failed:', err.message);
+    console.error(err.stack);
     process.exit(1);
   });

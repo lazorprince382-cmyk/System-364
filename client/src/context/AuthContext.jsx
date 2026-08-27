@@ -22,16 +22,22 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     let auth;
-    try {
-      auth = await api.login(email, password);
-    } catch (err) {
-      const retryable = /temporarily unavailable|cannot reach server|request failed/i.test(
-        err?.message || ''
-      );
-      if (!retryable) throw err;
-      await wait(500);
-      auth = await api.login(email, password);
+    let lastErr;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        auth = await api.login(email, password);
+        lastErr = null;
+        break;
+      } catch (err) {
+        lastErr = err;
+        const retryable = /temporarily unavailable|cannot reach server|request failed/i.test(
+          err?.message || ''
+        );
+        if (!retryable || attempt === 2) throw err;
+        await wait(600 * (attempt + 1));
+      }
     }
+    if (lastErr) throw lastErr;
     const { token, user: u } = auth;
     localStorage.setItem('token', token);
     setUser(u);

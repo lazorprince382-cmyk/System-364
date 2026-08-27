@@ -3,6 +3,7 @@ import { useAuth } from './context/AuthContext';
 import { useInactivityLogout } from './hooks/useInactivityLogout';
 import Layout from './components/Layout';
 import Login from './pages/Login';
+import Portal from './pages/Portal';
 import Dashboard from './pages/Dashboard';
 import Inventory from './pages/Inventory';
 import Products from './pages/Products';
@@ -23,7 +24,7 @@ function InactivityGuard({ children }) {
     enabled: !!user,
     onTimeout: () => {
       logout();
-      navigate('/login?reason=timeout', { replace: true });
+      navigate('/portal?reason=timeout', { replace: true });
     },
   });
 
@@ -43,7 +44,7 @@ function PrivateRoute({ children }) {
   return user ? (
     <InactivityGuard>{children}</InactivityGuard>
   ) : (
-    <Navigate to={`/login${location.search || ''}`} replace />
+    <Navigate to={`/portal${location.search || ''}`} replace />
   );
 }
 
@@ -60,13 +61,18 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
+      <Route path="/portal" element={user ? <Navigate to="/" replace /> : <Portal />} />
+      <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
       <Route
         path="/"
         element={
-          <PrivateRoute>
-            <Layout />
-          </PrivateRoute>
+          user ? (
+            <PrivateRoute>
+              <Layout />
+            </PrivateRoute>
+          ) : (
+            <Navigate to="/portal" replace />
+          )
         }
       >
         <Route index element={<Dashboard />} />
@@ -91,7 +97,7 @@ export default function App() {
         <Route path="roles" element={<Roles />} />
         <Route path="settings" element={<Settings />} />
       </Route>
-      <Route path="*" element={<Navigate to="/" />} />
+      <Route path="*" element={<Navigate to={user ? '/' : '/portal'} replace />} />
     </Routes>
   );
 }

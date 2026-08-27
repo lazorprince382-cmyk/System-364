@@ -4,7 +4,16 @@ function getToken() {
   return localStorage.getItem('token');
 }
 
-async function request(path, options = {}) {
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function isTransientFailure(status, message = '') {
+  if (status === 502 || status === 503 || status === 504) return true;
+  return /temporarily unavailable|cannot reach server|ECONNREFUSED|ECONNRESET|proxy/i.test(
+    message
+  );
+}
+
+async function request(path, options = {}, retries = 2) {
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
@@ -12,22 +21,37 @@ async function request(path, options = {}) {
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  let res;
-  try {
-    res = await fetch(`${API}${path}`, { ...options, headers });
-  } catch {
-    throw new Error('Cannot reach server. Please wait a moment and try again.');
-  }
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    let res;
+    try {
+      res = await fetch(`${API}${path}`, { ...options, headers });
+    } catch {
+      lastError = new Error('Cannot reach server. Please wait a moment and try again.');
+      if (attempt < retries) {
+        await wait(400 * (attempt + 1));
+        continue;
+      }
+      throw lastError;
+    }
 
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) return data;
+
     const fallback =
       res.status >= 500
         ? 'Server is starting or temporarily unavailable. Please try again.'
         : `Request failed (${res.status})`;
-    throw new Error(data.error || fallback);
+    const message = data.error || fallback;
+    lastError = new Error(message);
+
+    if (attempt < retries && isTransientFailure(res.status, message)) {
+      await wait(400 * (attempt + 1));
+      continue;
+    }
+    throw lastError;
   }
-  return data;
+  throw lastError;
 }
 
 export const api = {
