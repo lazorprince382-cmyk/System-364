@@ -1,12 +1,18 @@
-# The Ocean of Knowledge - Unified System
+# system-364 — Unified School Systems
 
-Single-platform management system for The Ocean of Knowledge School combining:
-- **Uniform Desk**: Student uniform inventory, orders, and returns
-- **Kitchen System**: Meal planning, ingredient management, and budgeting
+Single-platform management for The Ocean of Knowledge School:
+
+- **Uniform Desk** — Student uniform inventory, orders, and returns  
+- **Kitchen System** — Meal planning, ingredient management, and budgeting  
+- **Finance Desk** — Income, expenses, vans, mechanical, and fuel  
+
+**GitHub:** https://github.com/lazorprince382-cmyk/system-364
+
+Staff start at the **portal** (`/portal`), choose a system, then sign in to that system only.
 
 ## Architecture
 
-**Single Express Gateway** (`render-server.js`) routes both backend services:
+**Single Express Gateway** (`render-server.js`) routes Uniform and Kitchen backends:
 ```
 Client (React) 
     ↓
@@ -15,11 +21,13 @@ Gateway (Port 3000)
     └─→ /kitchen/api/* → Kitchen Backend (Port 5002)
 ```
 
-Both backends share:
-- Single Render Web Service
-- Separate PostgreSQL databases
+Finance Desk runs as its own Vite + Express pair (ports **3010** / **5010** in local dev).
+
+Both Uniform and Kitchen backends can share:
+- A single Render / VPS web service (via gateway)
+- PostgreSQL (shared or separate DBs)
 - Session/JWT authentication
-- Shared frontend login
+- The shared portal + login flow
 
 ## Quick Start
 
@@ -78,17 +86,22 @@ npm run dev:gateway   # Gateway only
 
 ## Login Behavior
 
-The unified login page lets users choose:
+Open `/portal`, then pick a system:
 
 1. **Uniform Desk**
-   - Email: `bursar@toks.com`
+   - Email: `bursar@toks.com` / `admin123`
    - Post to: `/api/auth/login`
    - Redirect: `/` (dashboard)
 
 2. **Kitchen System**
-   - Username: `chef_full`
-   - Post to: `/kitchen/api/auth/login` (or port 3005 in dev)
-   - Redirect: `/kitchen` (kitchen app)
+   - Username: `chef_full` / `ChefFull1!`
+   - Post to: `/kitchen/api/auth/login` (or Kitchen app URL in dev)
+   - Redirect: Kitchen home
+
+3. **Finance Desk**
+   - Email: `bursar@toks.com` / `admin123`
+   - Post to: Finance API `/api/auth/login` (port 5010 locally)
+   - Redirect: Finance UI (port 3010 locally)
 
 ## Database Schema
 

@@ -1,98 +1,79 @@
-# The Ocean of Knowledge School — Uniform Desk
+# system-364
 
-An in-school uniform inventory system for **The Ocean of Knowledge School** (*Up With Skills*). Staff manage stock and issue uniforms to **children** (collected by parents). Built with **Node.js**, **PostgreSQL**, and **React**.
+School systems monorepo for **The Ocean of Knowledge School** (*Up With Skills*).
 
-![Dashboard](https://via.placeholder.com/800x400?text=School+Uniform+Inventory+Dashboard)
+One portal at `/portal` lets staff pick a system and sign in:
 
-## Features
+| System | What it does | Local UI | Local API |
+|--------|----------------|----------|-----------|
+| **Uniform Desk** | Inventory, issuances, parents & students | http://localhost:3000 | http://localhost:5000 |
+| **Kitchen System** | Meals, stock & prep | http://localhost:3005 | kitchen API on same app |
+| **Finance Desk** | Income, expenses, vans, mechanical, fuel | http://localhost:3010 | http://localhost:5010 |
 
-- **Dashboard** — Key metrics, donut chart by category, low-stock alerts, recent orders, inventory by category, stock movement
-- **Inventory** — Filter and view all stock items
-- **Categories** — Uniform Store, Sports Wear, Track Suits, Socks
-- **Products** — SKU, pricing, stock levels with CRUD
-- **Stock In / Stock Out** — Record transactions with real-time stock updates
-- **Issuances** — Issue uniforms to parents for a specific child; stock deducts automatically
-- **Returns** — Parents returning items; stock is restocked
-- **Parents & Students** — Register parents and link enrolled children (class, section)
-- **Reports** — Stock, Collections (fees from parents), and Low Stock
-- **System** — Users, Roles & Permissions (RBAC), Settings
+**Repository:** [github.com/lazorprince382-cmyk/system-364](https://github.com/lazorprince382-cmyk/system-364)
 
-## Prerequisites
-
-- [Node.js](https://nodejs.org/) 18+
-- [PostgreSQL](https://www.postgresql.org/) 14+
-
-## Setup
-
-### 1. Create the database
-
-```sql
-CREATE DATABASE toks_uniform;
-```
-
-### 2. Configure environment
-
-Copy `server/.env.example` to `server/.env` and update your PostgreSQL connection:
-
-```
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/toks_uniform
-```
-
-### 3. Install dependencies
+## Quick start
 
 ```bash
 npm run install:all
-```
-
-### 4. Initialize database (schema + seed data)
-
-```bash
 npm run db:setup
-npm run db:migrate-school
-npm run db:seed-school
-```
-
-### 5. Start the application
-
-```bash
+npm run db:setup:finance
+# Kitchen DB: see kitchen/README.md (npm run init-db inside kitchen/)
 npm run dev
 ```
 
-- **Frontend:** http://localhost:3000
-- **Backend API:** http://localhost:5000
+Then open **http://localhost:3000/portal**.
 
-### Login credentials
+### Sample logins
 
-| Email            | Password  |
-|------------------|-----------|
-| admin@toks.com   | admin123  |
+| System | Username / email | Password |
+|--------|------------------|----------|
+| Uniform | `bursar@toks.com` | `admin123` |
+| Kitchen | `chef_full` | `ChefFull1!` |
+| Kitchen (ops) | `chef_ops` | `ChefOps1!` |
+| Kitchen (admin) | `admin` | `KitchenAdmin!` |
+| Finance | `bursar@toks.com` | `admin123` |
 
-## Project Structure
+## Project layout
 
 ```
-├── client/          # React + Vite + Tailwind CSS frontend
-├── server/          # Express + PostgreSQL API
-│   └── src/
-│       ├── db/      # Schema, seed, setup
-│       └── routes/  # REST API endpoints
-└── package.json     # Root scripts
+├── client/          # Portal + Uniform React app (Vite)
+├── server/          # Uniform API (Express + PostgreSQL)
+├── kitchen/         # Kitchen app + API
+├── finance/         # Finance Desk (client + server)
+├── package.json     # Root scripts (dev all systems)
+└── README.md
 ```
 
-## API Endpoints
+## Scripts
 
-| Method | Endpoint                    | Description              |
-|--------|-----------------------------|--------------------------|
-| POST   | /api/auth/login             | User login               |
-| GET    | /api/dashboard/stats        | Dashboard metrics        |
-| GET    | /api/products               | List products            |
-| POST   | /api/stock/in               | Record stock in          |
-| POST   | /api/stock/out              | Record stock out         |
-| POST   | /api/orders                 | Create order             |
-| PATCH  | /api/orders/:id/status      | Update order status      |
-| GET    | /api/reports/low-stock      | Low stock report         |
+```bash
+npm run install:all      # Install root, Uniform, Kitchen, Finance
+npm run dev              # Uniform + Kitchen + Finance together
+npm run dev:client       # Portal / Uniform UI only
+npm run dev:server       # Uniform API only
+npm run dev:kitchen      # Kitchen only
+npm run dev:finance      # Finance only
+npm run db:setup         # Uniform database
+npm run db:setup:finance # Finance database
+```
 
-## Tech Stack
+## Finance Desk
 
-- **Backend:** Node.js, Express, pg, JWT, bcrypt
-- **Database:** PostgreSQL
-- **Frontend:** React 18, Vite, Tailwind CSS, Recharts, Lucide Icons
+Separate bursar app under `finance/`. See [finance/README.md](finance/README.md).
+
+- Income & expenses (day / month / term filters)
+- Vans, mechanical, fuel fund
+- Search + Excel reports
+- Themes shared with Uniform (`toks-theme`)
+
+## More docs
+
+- [README-UNIFIED.md](README-UNIFIED.md) — gateway / production notes
+- [kitchen/README.md](kitchen/README.md) — Kitchen setup
+- [finance/README.md](finance/README.md) — Finance setup
+- [DEPLOYMENT-CHECKLIST.md](DEPLOYMENT-CHECKLIST.md) — deploy checklist
+
+## License
+
+Private — The Ocean of Knowledge School
