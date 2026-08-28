@@ -3,8 +3,12 @@
   "version": "1.0.0",
   "type": "module",
   "private": true,
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "install:all": "npm install && cd server && npm install && cd ../client && npm install && cd ../kitchen && npm install && cd ../finance && npm install && npm run install:all",
+    "preinstall": "node scripts/ensure-vendor.js && node scripts/copy-npmrc.js",
+    "install:all": "node scripts/ensure-vendor.js && node scripts/copy-npmrc.js && npm install && cd server && npm install && cd ../client && npm install && cd ../kitchen && npm install && cd ../finance && npm install && npm run install:all",
     "db:setup": "cd server && npm run db:setup",
     "db:setup:finance": "cd finance && npm run db:setup",
     "db:update-catalog": "cd server && npm run db:update-catalog",
@@ -22,11 +26,15 @@
     "render:start": "node start-unified.js"
   },
   "dependencies": {
-    "express": "^4.21.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "utils-merge": "file:vendor/utils-merge"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
+  },
+  "overrides": {
+    "utils-merge": "$utils-merge"
   }
 }

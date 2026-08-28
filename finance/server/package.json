@@ -4,6 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "preinstall": "node ../../scripts/ensure-vendor.js",
     "dev": "node src/index.js",
     "dev:watch": "node --watch src/index.js",
     "start": "node src/index.js",
@@ -17,6 +18,10 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.1",
-    "toks-finance": "file:.."
+    "toks-finance": "file:..",
+    "utils-merge": "file:vendor/utils-merge"
+  },
+  "overrides": {
+    "utils-merge": "$utils-merge"
   }
 }

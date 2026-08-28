@@ -3,3 +3,8 @@ dist/
 .env
 *.log
 .DS_Store
+
+# Generated copies of root vendor/ (see scripts/ensure-vendor.js)
+server/vendor/
+kitchen/vendor/
+finance/server/vendor/

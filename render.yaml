@@ -6,6 +6,8 @@ services:
     
     # Build step
     buildCommand: >
+      node scripts/ensure-vendor.js &&
+      node scripts/copy-npmrc.js &&
       npm run install:all &&
       cd client &&
       npm run build &&
@@ -16,6 +18,9 @@ services:
     
     # Environment variables
     envVars:
+      - key: NODE_VERSION
+        value: "20"
+      
       - key: NODE_ENV
         value: production
       

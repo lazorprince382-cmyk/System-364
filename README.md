@@ -34,6 +34,12 @@ Then open **http://localhost:3000/portal**.
 | Kitchen (admin) | `admin` | `KitchenAdmin!` |
 | Finance | `bursar@toks.com` | `admin123` |
 
+## Deploy / npm install
+
+See **[DEPLOY-NPM.md](DEPLOY-NPM.md)** if `npm install` fails on a server (TLS, `utils-merge`, network timeouts). The repo vendors fragile packages and sets npm retries automatically.
+
+**Node:** 18+ required, **20 LTS** recommended (see `.nvmrc`).
+
 ## Project layout
 
 ```

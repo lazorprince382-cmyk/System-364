@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "preinstall": "node ../scripts/ensure-vendor.js",
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "db:create": "node src/db/create-db.js",
@@ -22,6 +23,10 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "utils-merge": "file:vendor/utils-merge"
+  },
+  "overrides": {
+    "utils-merge": "$utils-merge"
   }
 }
