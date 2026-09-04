@@ -14,5 +14,6 @@ INSERT INTO categories (name, description, color_code) VALUES
   ('Uniform Store', 'Standard school uniforms', '#3b82f6'),
   ('Sports Wear', 'Sports and PE uniforms', '#8b5cf6'),
   ('Track Suits', 'Track suits and athletic wear', '#06b6d4'),
-  ('Socks', 'School socks and accessories', '#f59e0b')
+  ('Socks', 'School socks and accessories', '#f59e0b'),
+  ('Sweaters', 'School sweaters and jumpers', '#152a5e')
 ON CONFLICT DO NOTHING;
