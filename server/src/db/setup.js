@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
 import pool from './pool.js';
+import { CATEGORIES, PRODUCTS } from '../config/uniformCatalog.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -39,6 +40,16 @@ async function setup() {
       END $$;
     `);
 
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`);
+
+    for (const cat of CATEGORIES) {
+      await pool.query(
+        `INSERT INTO categories (name, description, color_code) VALUES ($1, $2, $3)
+         ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description, color_code = EXCLUDED.color_code`,
+        [cat.name, cat.description, cat.color_code]
+      );
+    }
+
     const seed = fs.readFileSync(path.join(__dirname, 'seed.sql'), 'utf8');
     await pool.query(seed);
 
@@ -53,33 +64,30 @@ async function setup() {
 
     const { rows: cats } = await pool.query('SELECT id, name FROM categories ORDER BY id');
 
-    const products = [
-      { name: 'White Shirts', sku: 'USH-001', cat: 'Uniform Store', stock: 850, min: 50, price: 450 },
-      { name: 'White Skirts', sku: 'USK-002', cat: 'Uniform Store', stock: 15, min: 30, price: 520 },
-      { name: 'Navy Trousers', sku: 'UTR-003', cat: 'Uniform Store', stock: 620, min: 40, price: 580 },
-      { name: 'School Blazers', sku: 'UBL-004', cat: 'Uniform Store', stock: 280, min: 25, price: 1200 },
-      { name: 'White Shirts', sku: 'SWH-001', cat: 'Sports Wear', stock: 420, min: 30, price: 380 },
-      { name: 'Yellow Shirts', sku: 'SWH-002', cat: 'Sports Wear', stock: 380, min: 30, price: 380 },
-      { name: 'Sports Shorts', sku: 'SSH-003', cat: 'Sports Wear', stock: 350, min: 25, price: 320 },
-      { name: 'Sports Jerseys', sku: 'SJR-004', cat: 'Sports Wear', stock: 400, min: 25, price: 450 },
-      { name: 'Blue Track Suit', sku: 'TTS-001', cat: 'Track Suits', stock: 320, min: 20, price: 850 },
-      { name: 'Maroon Track Suit', sku: 'TTS-002', cat: 'Track Suits', stock: 10, min: 20, price: 850 },
-      { name: 'Grey Track Pants', sku: 'TTP-003', cat: 'Track Suits', stock: 280, min: 20, price: 520 },
-      { name: 'White Socks (Pair)', sku: 'SKW-001', cat: 'Socks', stock: 1200, min: 100, price: 80 },
-      { name: 'Navy Socks (Pair)', sku: 'SKN-002', cat: 'Socks', stock: 18, min: 50, price: 80 },
-      { name: 'Sports Socks', sku: 'SKS-003', cat: 'Socks', stock: 450, min: 50, price: 90 },
-      { name: 'Ankle Socks', sku: 'SKA-004', cat: 'Socks', stock: 380, min: 40, price: 70 },
-    ];
-
-    for (const p of products) {
-      const cat = cats.find((c) => c.name === p.cat);
+    for (const p of PRODUCTS) {
+      const cat = cats.find((c) => c.name === p.category);
       await pool.query(
-        `INSERT INTO products (name, sku, category_id, unit_price, current_stock, min_stock_level, image_url)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         ON CONFLICT (sku) DO UPDATE SET current_stock = EXCLUDED.current_stock`,
-        [p.name, p.sku, cat?.id, p.price, p.stock, p.min, `https://api.dicebear.com/7.x/shapes/svg?seed=${p.sku}`]
+        `INSERT INTO products (name, sku, category_id, unit_price, current_stock, min_stock_level, image_url, gender)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (sku) DO UPDATE SET
+           name = EXCLUDED.name,
+           category_id = EXCLUDED.category_id,
+           unit_price = EXCLUDED.unit_price,
+           min_stock_level = EXCLUDED.min_stock_level,
+           gender = EXCLUDED.gender`,
+        [
+          p.name,
+          p.sku,
+          cat?.id,
+          p.price,
+          p.stock ?? 0,
+          p.min,
+          p.image || `https://api.dicebear.com/7.x/shapes/svg?seed=${p.sku}`,
+          p.gender || 'unisex',
+        ]
       );
     }
+    console.log('Catalog products seeded:', PRODUCTS.length);
 
     const seedDemoData = process.env.SEED_DEMO_DATA === 'true';
     if (seedDemoData) {

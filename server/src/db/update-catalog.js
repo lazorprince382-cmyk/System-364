@@ -3,6 +3,8 @@ import { CATEGORIES, PRODUCTS } from '../config/uniformCatalog.js';
 
 async function updateCatalog() {
   try {
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`);
+
     for (const cat of CATEGORIES) {
       await pool.query(
         `INSERT INTO categories (name, description, color_code) VALUES ($1, $2, $3)
@@ -12,18 +14,20 @@ async function updateCatalog() {
     }
 
     const { rows: cats } = await pool.query('SELECT id, name FROM categories');
+    const validSkus = PRODUCTS.map((p) => p.sku);
 
     for (const p of PRODUCTS) {
       const cat = cats.find((c) => c.name === p.category);
       await pool.query(
-        `INSERT INTO products (name, sku, category_id, unit_price, current_stock, min_stock_level, image_url)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO products (name, sku, category_id, unit_price, current_stock, min_stock_level, image_url, gender)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          ON CONFLICT (sku) DO UPDATE SET
            name = EXCLUDED.name,
            category_id = EXCLUDED.category_id,
            unit_price = EXCLUDED.unit_price,
            min_stock_level = EXCLUDED.min_stock_level,
-           image_url = EXCLUDED.image_url`,
+           image_url = EXCLUDED.image_url,
+           gender = EXCLUDED.gender`,
         [
           p.name,
           p.sku,
@@ -32,7 +36,26 @@ async function updateCatalog() {
           0,
           p.min,
           p.image || `https://api.dicebear.com/7.x/shapes/svg?seed=${p.sku}`,
+          p.gender || 'unisex',
         ]
+      );
+    }
+
+    // Remove obsolete catalog items (old Sports Wear / Sweaters SKUs, etc.)
+    const { rows: orphans } = await pool.query(
+      `SELECT id, sku, name FROM products WHERE sku NOT IN (${validSkus.map((_, i) => `$${i + 1}`).join(',')})`,
+      validSkus
+    );
+    if (orphans.length) {
+      const orphanIds = orphans.map((o) => o.id);
+      await pool.query(`DELETE FROM order_items WHERE product_id = ANY($1)`, [orphanIds]);
+      await pool.query(`DELETE FROM return_items WHERE product_id = ANY($1)`, [orphanIds]);
+      await pool.query(`DELETE FROM stock_transactions WHERE product_id = ANY($1)`, [orphanIds]);
+      await pool.query(`DELETE FROM inventory_stock WHERE product_id = ANY($1)`, [orphanIds]);
+      await pool.query(`DELETE FROM products WHERE id = ANY($1)`, [orphanIds]);
+      console.log(
+        'Removed obsolete products:',
+        orphans.map((o) => `${o.sku} (${o.name})`).join(', ')
       );
     }
 
