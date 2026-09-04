@@ -8,10 +8,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // no matter the current working directory when spawned.
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-  connectionTimeoutMillis: 15000,
-});
+const connectionString =
+  process.env.DATABASE_URL || process.env.UNIFORM_DATABASE_URL || null;
+
+const pool = new pg.Pool(
+  connectionString
+    ? { connectionString, connectionTimeoutMillis: 15000 }
+    : { connectionTimeoutMillis: 15000 }
+);
 
 // Handle pool errors
 pool.on('error', (err) => {

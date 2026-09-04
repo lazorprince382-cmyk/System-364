@@ -4,9 +4,19 @@ import { CATEGORIES, PRODUCTS } from '../config/uniformCatalog.js';
 async function updateCatalog() {
   console.log('Updating uniform catalog…');
 
-  if (!process.env.DATABASE_URL) {
-    console.error('DATABASE_URL is missing. Set it in server/.env then retry.');
+  const dbUrl = process.env.DATABASE_URL || process.env.UNIFORM_DATABASE_URL;
+  if (!dbUrl) {
+    console.error('No DATABASE_URL or UNIFORM_DATABASE_URL set.');
+    console.error('In Docker/Railway, export the Postgres URL then retry:');
+    console.error('  export DATABASE_URL="$UNIFORM_DATABASE_URL"');
+    console.error('  npm run db:update-catalog');
     process.exit(1);
+  }
+
+  // pool.js already prefers DATABASE_URL || UNIFORM_DATABASE_URL
+  if (!process.env.DATABASE_URL && process.env.UNIFORM_DATABASE_URL) {
+    process.env.DATABASE_URL = process.env.UNIFORM_DATABASE_URL;
+    console.log('Using UNIFORM_DATABASE_URL for this run.');
   }
 
   try {
@@ -55,7 +65,6 @@ async function updateCatalog() {
     }
     console.log('Products upserted:', PRODUCTS.length);
 
-    // Remove obsolete catalog items (old Sports Wear / Sweaters SKUs, etc.)
     const { rows: orphans } = await pool.query(
       `SELECT id, sku, name FROM products WHERE sku NOT IN (${validSkus.map((_, i) => `$${i + 1}`).join(',')})`,
       validSkus
@@ -81,7 +90,7 @@ async function updateCatalog() {
   } catch (e) {
     console.error('❌ Catalog update failed:', e.message);
     if (/timeout|ECONNREFUSED|ENOTFOUND|password|auth/i.test(e.message)) {
-      console.error('Check Postgres is running and server/.env DATABASE_URL is correct.');
+      console.error('Check Postgres is reachable and DATABASE_URL / UNIFORM_DATABASE_URL is correct.');
     }
     process.exit(1);
   } finally {
