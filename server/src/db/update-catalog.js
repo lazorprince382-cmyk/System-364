@@ -2,8 +2,20 @@ import pool from './pool.js';
 import { CATEGORIES, PRODUCTS } from '../config/uniformCatalog.js';
 
 async function updateCatalog() {
+  console.log('Updating uniform catalog…');
+
+  if (!process.env.DATABASE_URL) {
+    console.error('DATABASE_URL is missing. Set it in server/.env then retry.');
+    process.exit(1);
+  }
+
   try {
+    console.log('Connecting to database…');
+    await pool.query('SELECT 1');
+    console.log('Connected.');
+
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`);
+    console.log('Ensured gender column.');
 
     for (const cat of CATEGORIES) {
       await pool.query(
@@ -12,6 +24,7 @@ async function updateCatalog() {
         [cat.name, cat.description, cat.color_code]
       );
     }
+    console.log('Categories synced:', CATEGORIES.length);
 
     const { rows: cats } = await pool.query('SELECT id, name FROM categories');
     const validSkus = PRODUCTS.map((p) => p.sku);
@@ -40,6 +53,7 @@ async function updateCatalog() {
         ]
       );
     }
+    console.log('Products upserted:', PRODUCTS.length);
 
     // Remove obsolete catalog items (old Sports Wear / Sweaters SKUs, etc.)
     const { rows: orphans } = await pool.query(
@@ -63,9 +77,12 @@ async function updateCatalog() {
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_confirmed BOOLEAN DEFAULT true
     `);
 
-    console.log('Uniform catalog updated:', PRODUCTS.length, 'products');
+    console.log('✅ Uniform catalog updated:', PRODUCTS.length, 'products');
   } catch (e) {
-    console.error(e.message);
+    console.error('❌ Catalog update failed:', e.message);
+    if (/timeout|ECONNREFUSED|ENOTFOUND|password|auth/i.test(e.message)) {
+      console.error('Check Postgres is running and server/.env DATABASE_URL is correct.');
+    }
     process.exit(1);
   } finally {
     await pool.end();

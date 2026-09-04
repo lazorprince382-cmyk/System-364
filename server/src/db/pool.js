@@ -10,6 +10,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
+  connectionTimeoutMillis: 15000,
 });
 
 // Handle pool errors
