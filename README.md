@@ -72,7 +72,8 @@ See **[DEPLOY-NPM.md](DEPLOY-NPM.md)** if `npm install` fails on a server (TLS, 
 ## Scripts
 
 ```bash
-npm run setup            # First-time: env files + install + DB schema
+npm run setup            # First-time ONLY (new machine) — env + install + empty DBs
+npm run update           # Existing deploy — git pull + install + rebuild (keeps data)
 npm run install:all      # Install root, Uniform, Kitchen, Finance
 npm run dev              # Uniform + Kitchen + Finance together
 npm run dev:client       # Portal / Uniform UI only
