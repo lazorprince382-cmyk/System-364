@@ -8,21 +8,39 @@ One portal at `/portal` lets staff pick a system and sign in:
 |--------|----------------|----------|-----------|
 | **Uniform Desk** | Inventory, issuances, parents & students | http://localhost:3000 | http://localhost:5000 |
 | **Kitchen System** | Meals, stock & prep | http://localhost:3005 | kitchen API on same app |
-| **Finance Desk** | Income, expenses, vans, mechanical, fuel | http://localhost:3010 | http://localhost:5010 |
+| **Finance Desk** | Income, expenses, departments, vans, mechanical, fuel | http://localhost:3010 | http://localhost:5010 |
 
 **Repository:** [github.com/lazorprince382-cmyk/System-364](https://github.com/lazorprince382-cmyk/System-364)
 
 ## Quick start
 
+**Needs:** Node 18+ (20 LTS recommended), PostgreSQL running locally.
+
+```bash
+git clone https://github.com/lazorprince382-cmyk/System-364.git
+cd System-364
+npm run setup
+```
+
+That copies `.env.example` → `.env` (if missing), installs packages, and creates Uniform + Finance (+ Kitchen) databases/schema. Then edit `YOUR_PASSWORD` in the `.env` files if Postgres needs a password, and run:
+
+```bash
+npm run dev
+```
+
+Open **http://localhost:3000/portal**.
+
+### Manual steps (same as setup)
+
 ```bash
 npm run install:all
 npm run db:setup
 npm run db:setup:finance
-# Kitchen DB: see kitchen/README.md (npm run init-db inside kitchen/)
+# Kitchen DB: npm run init-db --prefix kitchen
 npm run dev
 ```
 
-Then open **http://localhost:3000/portal**.
+`.env` files and live data dumps are **not** committed — each machine uses its own database.
 
 ### Sample logins
 
@@ -54,6 +72,7 @@ See **[DEPLOY-NPM.md](DEPLOY-NPM.md)** if `npm install` fails on a server (TLS, 
 ## Scripts
 
 ```bash
+npm run setup            # First-time: env files + install + DB schema
 npm run install:all      # Install root, Uniform, Kitchen, Finance
 npm run dev              # Uniform + Kitchen + Finance together
 npm run dev:client       # Portal / Uniform UI only
@@ -69,8 +88,9 @@ npm run db:setup:finance # Finance database
 Separate bursar app under `finance/`. See [finance/README.md](finance/README.md).
 
 - Income & expenses (day / month / term filters)
-- Vans, mechanical, fuel fund
-- Search + Excel reports
+- Vans, mechanical, fuel
+- **Departments** — department expenses + optional store (purchases / stock / issues)
+- Search + Excel / in-app reports
 - Themes shared with Uniform (`toks-theme`)
 
 ## More docs

@@ -1,11 +1,6 @@
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+import '../load-env.js';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 const dbName = process.env.PG_DATABASE || 'toks_finance';
@@ -136,6 +131,61 @@ async function setup() {
       start_date DATE NOT NULL,
       end_date DATE NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS departments (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(120) UNIQUE NOT NULL,
+      has_inventory BOOLEAN NOT NULL DEFAULT false,
+      active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS department_purchases (
+      id SERIAL PRIMARY KEY,
+      department_id INTEGER NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+      purchase_date DATE NOT NULL,
+      material TEXT NOT NULL,
+      quantity NUMERIC(14,3) NOT NULL DEFAULT 1,
+      unit_cost NUMERIC(14,0),
+      amount NUMERIC(14,0) NOT NULL CHECK (amount >= 0),
+      notes TEXT,
+      recorded_by INTEGER REFERENCES users(id),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS department_expenses (
+      id SERIAL PRIMARY KEY,
+      department_id INTEGER NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+      amount NUMERIC(14,0) NOT NULL CHECK (amount >= 0),
+      expense_date DATE NOT NULL,
+      purpose TEXT NOT NULL,
+      taken_by VARCHAR(255) NOT NULL,
+      notes TEXT,
+      purchase_id INTEGER REFERENCES department_purchases(id) ON DELETE SET NULL,
+      recorded_by INTEGER REFERENCES users(id),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS department_stock (
+      id SERIAL PRIMARY KEY,
+      department_id INTEGER NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+      material TEXT NOT NULL,
+      quantity_on_hand NUMERIC(14,3) NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (department_id, material)
+    );
+
+    CREATE TABLE IF NOT EXISTS department_issues (
+      id SERIAL PRIMARY KEY,
+      department_id INTEGER NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+      stock_id INTEGER NOT NULL REFERENCES department_stock(id) ON DELETE CASCADE,
+      issue_date DATE NOT NULL,
+      quantity NUMERIC(14,3) NOT NULL CHECK (quantity > 0),
+      taken_by VARCHAR(255) NOT NULL,
+      notes TEXT,
+      recorded_by INTEGER REFERENCES users(id),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `);
 
   const hash = await bcrypt.hash('admin123', 10);
@@ -167,6 +217,32 @@ async function setup() {
         `${y}-12-15`,
       ]
     );
+  }
+
+  const { rows: depts } = await pool.query('SELECT COUNT(*)::int AS c FROM departments');
+  if (depts[0].c === 0) {
+    const defaults = [
+      ['Kitchen', false],
+      ['Computer', false],
+      ['Fashion & Design', true],
+      ['Music', false],
+      ['Salon', false],
+      ['Plumbing', false],
+      ['Electricity', false],
+      ['Water', false],
+      ['Salaries', false],
+      ['Boda delivers', false],
+      ['Electrical repairs', false],
+      ['Garbage collection', false],
+      ['DOS', true],
+      ['Swimming', false],
+    ];
+    for (const [name, hasInv] of defaults) {
+      await pool.query(
+        `INSERT INTO departments (name, has_inventory) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING`,
+        [name, hasInv]
+      );
+    }
   }
 
   console.log('✅ toks_finance schema ready');

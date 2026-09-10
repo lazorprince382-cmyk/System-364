@@ -1,8 +1,14 @@
 node_modules/
 dist/
 .env
+.env.*
+!.env.example
 *.log
 .DS_Store
+*.dump
+*.sql.gz
+backups/
+data-dumps/
 
 # Generated copies of root vendor/ (see scripts/ensure-vendor.js)
 server/vendor/

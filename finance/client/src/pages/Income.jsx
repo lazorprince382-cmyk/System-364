@@ -4,6 +4,7 @@ import { Trash2 } from 'lucide-react';
 import { api } from '../api';
 import { formatUGX, todayISO } from '../config/school';
 import PeriodFilter, { filterFromSearchParams, periodParams } from '../components/PeriodFilter';
+import ViewReportButton from '../components/ViewReportButton';
 import { useAuth } from '../context/AuthContext';
 
 export default function Income() {
@@ -54,9 +55,15 @@ export default function Income() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="page-title">Income</h2>
-        <p className="muted mt-1">Record money received — amount, date, purpose, and who it came from.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="page-title">Income</h2>
+          <p className="muted mt-1">Record money received — amount, date, purpose, and who it came from.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <ViewReportButton type="income" filter={filter} label="View report" />
+          <ViewReportButton type="all" filter={filter} label="Full workbook" className="btn-primary" />
+        </div>
       </div>
 
       <PeriodFilter value={filter} onChange={setFilter} />
@@ -90,46 +97,48 @@ export default function Income() {
           </form>
         )}
 
-        <div className={`card p-5 overflow-x-auto ${canEdit ? 'lg:col-span-3' : ''}`}>
+        <div className={`card p-5 flex flex-col ${canEdit ? 'lg:col-span-3' : ''}`}>
           {!canEdit && error && <p className="text-sm text-red-600 mb-3">{error}</p>}
-          <div className="flex justify-between items-center mb-3">
+          <div className="flex justify-between items-center mb-3 shrink-0">
             <h3 className="font-semibold">Records</h3>
             <p className="text-sm font-semibold">{formatUGX(total)}</p>
           </div>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Purpose</th>
-                <th>Amount</th>
-                {canEdit && <th></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td>{String(r.income_date).slice(0, 10)}</td>
-                  <td>
-                    <div className="font-medium">{r.purpose}</div>
-                    {r.received_from && <div className="text-xs muted">From {r.received_from}</div>}
-                  </td>
-                  <td className="font-semibold text-emerald-700">{formatUGX(r.amount)}</td>
-                  {canEdit && (
-                    <td>
-                      <button type="button" className="btn-ghost px-2 py-1 text-red-600" onClick={() => api.income.remove(r.id).then(load).catch((e) => setError(e.message))}>
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {!rows.length && (
+          <div className="records-scroll">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan={canEdit ? 4 : 3} className="muted py-8 text-center">No income in this period.</td>
+                  <th>Date</th>
+                  <th>Purpose</th>
+                  <th>Amount</th>
+                  {canEdit && <th></th>}
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id}>
+                    <td>{String(r.income_date).slice(0, 10)}</td>
+                    <td>
+                      <div className="font-medium">{r.purpose}</div>
+                      {r.received_from && <div className="text-xs muted">From {r.received_from}</div>}
+                    </td>
+                    <td className="font-semibold text-emerald-700">{formatUGX(r.amount)}</td>
+                    {canEdit && (
+                      <td>
+                        <button type="button" className="btn-ghost px-2 py-1 text-red-600" onClick={() => api.income.remove(r.id).then(load).catch((e) => setError(e.message))}>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {!rows.length && (
+                  <tr>
+                    <td colSpan={canEdit ? 4 : 3} className="muted py-8 text-center">No income in this period.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

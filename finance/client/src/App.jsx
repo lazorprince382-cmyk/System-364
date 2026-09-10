@@ -8,8 +8,10 @@ import Expenses from './pages/Expenses';
 import Vans from './pages/Vans';
 import Mechanical from './pages/Mechanical';
 import Fuel from './pages/Fuel';
+import Departments from './pages/Departments';
 import SearchPage from './pages/Search';
 import Reports from './pages/Reports';
+import ReportView from './pages/ReportView';
 import Settings from './pages/Settings';
 
 function Private({ children }) {
@@ -42,8 +44,10 @@ export default function App() {
         <Route path="vans" element={<Vans />} />
         <Route path="mechanical" element={<Mechanical />} />
         <Route path="fuel" element={<Fuel />} />
+        <Route path="departments" element={<Departments />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="reports/view/:type" element={<ReportView />} />
         <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -101,7 +101,7 @@ export default function Portal() {
   return (
     <div className="portal-page">
       <div className="portal-bg" aria-hidden>
-        <img src={SCHOOL.staffTeamUrl} alt="" className="portal-bg-img" />
+        <img src={SCHOOL.campusUrl} alt="" className="portal-bg-img" />
         <div className="portal-bg-shade" />
       </div>
 

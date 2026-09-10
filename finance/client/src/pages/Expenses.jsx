@@ -4,7 +4,15 @@ import { Trash2 } from 'lucide-react';
 import { api } from '../api';
 import { formatUGX, todayISO } from '../config/school';
 import PeriodFilter, { filterFromSearchParams, periodParams } from '../components/PeriodFilter';
+import ViewReportButton from '../components/ViewReportButton';
 import { useAuth } from '../context/AuthContext';
+
+const SOURCE_LABEL = {
+  general: 'General',
+  mechanical: 'Mechanical',
+  fuel: 'Fuel',
+  department: 'Department',
+};
 
 export default function Expenses() {
   const { canEdit } = useAuth();
@@ -50,13 +58,36 @@ export default function Expenses() {
     }
   };
 
+  const removeRow = async (r) => {
+    setError('');
+    try {
+      if (r.source === 'fuel') await api.fuel.expensesRemove(r.id);
+      else if (r.source === 'mechanical') await api.mechanical.remove(r.id);
+      else if (r.source === 'department') {
+        setError('Delete department expenses from the Departments tab.');
+        return;
+      } else await api.expenses.remove(r.id);
+      load();
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
   const total = rows.reduce((s, r) => s + Number(r.amount || 0), 0);
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="page-title">Expenses</h2>
-        <p className="muted mt-1">Who took the money, purpose, amount and date — filter by day, month or term.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="page-title">Expenses</h2>
+          <p className="muted mt-1">
+            All school spend — general, fuel and mechanical — for the selected period.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <ViewReportButton type="expenses" filter={filter} label="View report" />
+          <ViewReportButton type="all" filter={filter} label="Full workbook" className="btn-primary" />
+        </div>
       </div>
 
       <PeriodFilter value={filter} onChange={setFilter} />
@@ -90,45 +121,53 @@ export default function Expenses() {
           </form>
         )}
 
-        <div className={`card p-5 overflow-x-auto ${canEdit ? 'lg:col-span-3' : ''}`}>
+        <div className={`card p-5 flex flex-col ${canEdit ? 'lg:col-span-3' : ''}`}>
           {!canEdit && error && <p className="text-sm text-red-600 mb-3">{error}</p>}
-          <div className="flex justify-between items-center mb-3">
+          <div className="flex justify-between items-center mb-3 shrink-0">
             <h3 className="font-semibold">Records</h3>
             <p className="text-sm font-semibold text-red-700">{formatUGX(total)}</p>
           </div>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Purpose</th>
-                <th>Taken by</th>
-                <th>Amount</th>
-                {canEdit && <th></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td>{String(r.expense_date).slice(0, 10)}</td>
-                  <td className="font-medium">{r.purpose}</td>
-                  <td>{r.taken_by}</td>
-                  <td className="font-semibold text-red-700">{formatUGX(r.amount)}</td>
-                  {canEdit && (
-                    <td>
-                      <button type="button" className="btn-ghost px-2 py-1 text-red-600" onClick={() => api.expenses.remove(r.id).then(load).catch((e) => setError(e.message))}>
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {!rows.length && (
+          <div className="records-scroll">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan={canEdit ? 5 : 4} className="muted py-8 text-center">No expenses in this period.</td>
+                  <th>Date</th>
+                  <th>Source</th>
+                  <th>Purpose</th>
+                  <th>Taken by</th>
+                  <th>Amount</th>
+                  {canEdit && <th></th>}
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={`${r.source}-${r.id}`}>
+                    <td>{String(r.expense_date).slice(0, 10)}</td>
+                    <td>
+                      <span className="text-xs uppercase font-semibold muted">
+                        {SOURCE_LABEL[r.source] || r.source || 'General'}
+                      </span>
+                    </td>
+                    <td className="font-medium">{r.purpose}</td>
+                    <td>{r.taken_by}</td>
+                    <td className="font-semibold text-red-700">{formatUGX(r.amount)}</td>
+                    {canEdit && (
+                      <td>
+                        <button type="button" className="btn-ghost px-2 py-1 text-red-600" onClick={() => removeRow(r)}>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {!rows.length && (
+                  <tr>
+                    <td colSpan={canEdit ? 6 : 5} className="muted py-8 text-center">No expenses in this period.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

@@ -175,6 +175,19 @@ body {
     var(--theme-bg);
 }
 
+.records-scroll {
+  max-height: min(28rem, 55vh);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.records-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--theme-surface);
+}
+
 .system-login-page {
   min-height: 100dvh;
   display: flex;

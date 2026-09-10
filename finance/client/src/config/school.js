@@ -6,6 +6,7 @@ export const SCHOOL = {
   established: 'Est. 2025',
   logoUrl: '/images/school-logo.png',
   staffTeamUrl: '/images/staff-team.png',
+  campusUrl: '/images/school-campus.jpg',
   deskTitle: 'Finance Desk',
 };
 
@@ -13,6 +14,13 @@ export function formatUGX(amount) {
   const n = Number(amount);
   if (!Number.isFinite(n)) return 'UGX —';
   return `UGX ${Math.round(n).toLocaleString('en-UG')}`;
+}
+
+/** Whole-number qty for display (no trailing decimals). */
+export function formatQty(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '—';
+  return String(Math.round(n));
 }
 
 export function todayISO() {

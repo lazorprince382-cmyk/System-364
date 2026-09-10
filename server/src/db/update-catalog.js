@@ -1,8 +1,31 @@
 import pool from './pool.js';
 import { CATEGORIES, PRODUCTS } from '../config/uniformCatalog.js';
 
+function log(...args) {
+  console.log(...args);
+  // Docker/CI often buffers stdout; flush so progress is visible immediately
+  if (typeof process.stdout?.write === 'function') {
+    try {
+      process.stdout.write('');
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+function maskDbUrl(url) {
+  try {
+    const u = new URL(url);
+    if (u.password) u.password = '***';
+    return u.toString();
+  } catch {
+    return '(unparseable DATABASE_URL)';
+  }
+}
+
 async function updateCatalog() {
-  console.log('Updating uniform catalog…');
+  log('Updating uniform catalog…');
+  log('Catalog file products:', PRODUCTS.length, '| categories:', CATEGORIES.length);
 
   const dbUrl = process.env.DATABASE_URL || process.env.UNIFORM_DATABASE_URL;
   if (!dbUrl) {
@@ -16,16 +39,19 @@ async function updateCatalog() {
   // pool.js already prefers DATABASE_URL || UNIFORM_DATABASE_URL
   if (!process.env.DATABASE_URL && process.env.UNIFORM_DATABASE_URL) {
     process.env.DATABASE_URL = process.env.UNIFORM_DATABASE_URL;
-    console.log('Using UNIFORM_DATABASE_URL for this run.');
+    log('Using UNIFORM_DATABASE_URL for this run.');
   }
 
+  log('DB target:', maskDbUrl(dbUrl));
+  log('(If this hangs >15s, Postgres is unreachable from this container.)');
+
   try {
-    console.log('Connecting to database…');
+    log('Connecting to database…');
     await pool.query('SELECT 1');
-    console.log('Connected.');
+    log('Connected.');
 
     await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`);
-    console.log('Ensured gender column.');
+    log('Ensured gender column.');
 
     for (const cat of CATEGORIES) {
       await pool.query(
@@ -34,7 +60,7 @@ async function updateCatalog() {
         [cat.name, cat.description, cat.color_code]
       );
     }
-    console.log('Categories synced:', CATEGORIES.length);
+    log('Categories synced:', CATEGORIES.length);
 
     const { rows: cats } = await pool.query('SELECT id, name FROM categories');
     const validSkus = PRODUCTS.map((p) => p.sku);
@@ -63,7 +89,7 @@ async function updateCatalog() {
         ]
       );
     }
-    console.log('Products upserted:', PRODUCTS.length);
+    log('Products upserted:', PRODUCTS.length);
 
     const { rows: orphans } = await pool.query(
       `SELECT id, sku, name FROM products WHERE sku NOT IN (${validSkus.map((_, i) => `$${i + 1}`).join(',')})`,
@@ -76,7 +102,7 @@ async function updateCatalog() {
       await pool.query(`DELETE FROM stock_transactions WHERE product_id = ANY($1)`, [orphanIds]);
       await pool.query(`DELETE FROM inventory_stock WHERE product_id = ANY($1)`, [orphanIds]);
       await pool.query(`DELETE FROM products WHERE id = ANY($1)`, [orphanIds]);
-      console.log(
+      log(
         'Removed obsolete products:',
         orphans.map((o) => `${o.sku} (${o.name})`).join(', ')
       );
@@ -86,7 +112,7 @@ async function updateCatalog() {
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_confirmed BOOLEAN DEFAULT true
     `);
 
-    console.log('✅ Uniform catalog updated:', PRODUCTS.length, 'products');
+    log('✅ Uniform catalog updated:', PRODUCTS.length, 'products');
   } catch (e) {
     console.error('❌ Catalog update failed:', e.message);
     if (/timeout|ECONNREFUSED|ENOTFOUND|password|auth/i.test(e.message)) {

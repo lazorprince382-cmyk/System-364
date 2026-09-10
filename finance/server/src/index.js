@@ -1,10 +1,9 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import './load-env.js';
 import { authenticate, attachUser } from './middleware/auth.js';
 import { ensureUserPermissions } from './db/ensure-permissions.js';
+import { ensureDepartmentsSchema } from './db/ensure-departments.js';
 import authRoutes from './routes/auth.js';
 import usersRoutes from './routes/users.js';
 import incomeRoutes from './routes/income.js';
@@ -12,11 +11,9 @@ import expenseRoutes from './routes/expenses.js';
 import vansRoutes from './routes/vans.js';
 import mechanicalRoutes from './routes/mechanical.js';
 import fuelRoutes from './routes/fuel.js';
+import departmentsRoutes from './routes/departments.js';
 import dashboardRoutes from './routes/dashboard.js';
 import reportsRoutes from './routes/reports.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
 const PORT = process.env.PORT || 5010;
@@ -36,6 +33,7 @@ app.use('/api/expenses', authenticate, attachUser, expenseRoutes);
 app.use('/api/vans', authenticate, attachUser, vansRoutes);
 app.use('/api/mechanical', authenticate, attachUser, mechanicalRoutes);
 app.use('/api/fuel', authenticate, attachUser, fuelRoutes);
+app.use('/api/departments', authenticate, attachUser, departmentsRoutes);
 app.use('/api/reports', authenticate, attachUser, reportsRoutes);
 
 const clientDist = path.resolve(__dirname, '../../client/dist');
@@ -49,6 +47,7 @@ app.get('*', (req, res, next) => {
 
 async function start() {
   await ensureUserPermissions();
+  await ensureDepartmentsSchema();
   app.listen(PORT, () => {
     console.log(`✅ Finance API listening on http://localhost:${PORT}`);
   });

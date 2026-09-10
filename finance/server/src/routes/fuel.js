@@ -115,15 +115,17 @@ router.post('/expenses', requireEdit, async (req, res) => {
     if (!van_id || !expense_date) {
       return res.status(400).json({ error: 'Van, date and amount are required' });
     }
+    if (amount < 0) {
+      return res.status(400).json({ error: 'Amount cannot be negative' });
+    }
     const { rows } = await pool.query(
       `INSERT INTO fuel_expenses (van_id, amount, expense_date, litres, odometer, notes, recorded_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+       VALUES ($1,$2,$3,$4,NULL,$5,$6) RETURNING *`,
       [
         van_id,
         amount,
         expense_date,
         req.body.litres != null && req.body.litres !== '' ? Number(req.body.litres) : null,
-        req.body.odometer != null && req.body.odometer !== '' ? Number(req.body.odometer) : null,
         req.body.notes || null,
         req.user.id,
       ]

@@ -68,14 +68,35 @@ export const api = {
     remove: (id) => request(`/mechanical/${id}`, { method: 'DELETE' }),
   },
   fuel: {
-    balance: () => request('/fuel/balance'),
-    incomeList: (params) => request(`/fuel/income${qs(params)}`),
-    incomeCreate: (data) => request('/fuel/income', { method: 'POST', body: JSON.stringify(data) }),
-    incomeRemove: (id) => request(`/fuel/income/${id}`, { method: 'DELETE' }),
     expensesList: (params) => request(`/fuel/expenses${qs(params)}`),
     expensesCreate: (data) =>
       request('/fuel/expenses', { method: 'POST', body: JSON.stringify(data) }),
     expensesRemove: (id) => request(`/fuel/expenses/${id}`, { method: 'DELETE' }),
+  },
+  departments: {
+    list: () => request('/departments'),
+    create: (data) => request('/departments', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id, data) => request(`/departments/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    remove: (id) => request(`/departments/${id}`, { method: 'DELETE' }),
+    summary: (id, params) => request(`/departments/${id}/summary${qs(params)}`),
+    expensesList: (id, params) => request(`/departments/${id}/expenses${qs(params)}`),
+    expensesCreate: (id, data) =>
+      request(`/departments/${id}/expenses`, { method: 'POST', body: JSON.stringify(data) }),
+    expensesRemove: (id, expenseId) =>
+      request(`/departments/${id}/expenses/${expenseId}`, { method: 'DELETE' }),
+    purchasesList: (id, params) => request(`/departments/${id}/purchases${qs(params)}`),
+    purchasesCreate: (id, data) =>
+      request(`/departments/${id}/purchases`, { method: 'POST', body: JSON.stringify(data) }),
+    purchasesRemove: (id, purchaseId) =>
+      request(`/departments/${id}/purchases/${purchaseId}`, { method: 'DELETE' }),
+    stock: (id) => request(`/departments/${id}/stock`),
+    issuesList: (id, params) => request(`/departments/${id}/issues${qs(params)}`),
+    issuesCreate: (id, data) =>
+      request(`/departments/${id}/issues`, { method: 'POST', body: JSON.stringify(data) }),
+    issuesRemove: (id, issueId) =>
+      request(`/departments/${id}/issues/${issueId}`, { method: 'DELETE' }),
+    issuesRemoveBatch: (id, batchId) =>
+      request(`/departments/${id}/issues/batch/${batchId}`, { method: 'DELETE' }),
   },
   downloadReport: async (type, params = {}) => {
     const token = getToken();
@@ -93,5 +114,8 @@ export const api = {
     a.download = `toks-finance-${type}.xlsx`;
     a.click();
     URL.revokeObjectURL(url);
+  },
+  reports: {
+    preview: (type, params) => request(`/reports/preview/${type}${qs(params)}`),
   },
 };

@@ -267,7 +267,7 @@ export default function Login() {
   return (
     <div className="system-login-page">
       <div className="system-login-bg" aria-hidden>
-        <img src={SCHOOL.staffTeamUrl} alt="" className="system-login-bg-img" />
+        <img src={SCHOOL.campusUrl} alt="" className="system-login-bg-img" />
         <div className="system-login-bg-blur" />
       </div>
       <a href="/portal" className="system-login-back">

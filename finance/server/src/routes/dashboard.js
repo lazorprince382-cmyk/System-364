@@ -14,52 +14,101 @@ router.get('/summary', async (_req, res) => {
       `SELECT COALESCE(SUM(amount),0)::bigint AS t FROM income WHERE income_date = $1`,
       [today]
     );
-    const todayExpense = await q(
+    const todayExpenseGen = await q(
       `SELECT COALESCE(SUM(amount),0)::bigint AS t FROM expenses WHERE expense_date = $1`,
+      [today]
+    );
+    const todayExpenseFuel = await q(
+      `SELECT COALESCE(SUM(amount),0)::bigint AS t FROM fuel_expenses WHERE expense_date = $1`,
+      [today]
+    );
+    const todayExpenseMech = await q(
+      `SELECT COALESCE(SUM(amount),0)::bigint AS t FROM van_mechanical WHERE expense_date = $1`,
       [today]
     );
     const monthIncome = await q(
       `SELECT COALESCE(SUM(amount),0)::bigint AS t FROM income WHERE income_date >= $1 AND income_date <= $2`,
       [monthStart, today]
     );
-    const monthExpense = await q(
+    const monthExpenseGen = await q(
       `SELECT COALESCE(SUM(amount),0)::bigint AS t FROM expenses WHERE expense_date >= $1 AND expense_date <= $2`,
       [monthStart, today]
     );
-    const fuelIn = await q(`SELECT COALESCE(SUM(amount),0)::bigint AS t FROM fuel_income`);
-    const fuelOut = await q(`SELECT COALESCE(SUM(amount),0)::bigint AS t FROM fuel_expenses`);
-    const mechMonth = await q(
+    const monthExpenseFuel = await q(
+      `SELECT COALESCE(SUM(amount),0)::bigint AS t FROM fuel_expenses WHERE expense_date >= $1 AND expense_date <= $2`,
+      [monthStart, today]
+    );
+    const monthExpenseMech = await q(
       `SELECT COALESCE(SUM(amount),0)::bigint AS t FROM van_mechanical WHERE expense_date >= $1 AND expense_date <= $2`,
+      [monthStart, today]
+    );
+    const todayExpenseDept = await q(
+      `SELECT COALESCE(SUM(amount),0)::bigint AS t FROM department_expenses
+       WHERE expense_date = $1 AND purchase_id IS NULL`,
+      [today]
+    );
+    const monthExpenseDept = await q(
+      `SELECT COALESCE(SUM(amount),0)::bigint AS t FROM department_expenses
+       WHERE expense_date >= $1 AND expense_date <= $2 AND purchase_id IS NULL`,
       [monthStart, today]
     );
     const vans = await q(`SELECT COUNT(*)::int AS t FROM vans WHERE active = true`);
 
+    const todayExpense =
+      Number(todayExpenseGen.t) +
+      Number(todayExpenseFuel.t) +
+      Number(todayExpenseMech.t) +
+      Number(todayExpenseDept.t);
+    const monthExpense =
+      Number(monthExpenseGen.t) +
+      Number(monthExpenseFuel.t) +
+      Number(monthExpenseMech.t) +
+      Number(monthExpenseDept.t);
+    const fuelMonth = Number(monthExpenseFuel.t);
+    const mechMonth = Number(monthExpenseMech.t);
+
     const { rows: recent } = await pool.query(
-      `(SELECT 'income' AS kind, id, amount, income_date AS d, purpose AS label, created_at FROM income)
+      `(SELECT 'income' AS kind, id, amount, income_date AS d, purpose AS label,
+               NULL::int AS department_id, NULL::text AS tab, created_at FROM income)
        UNION ALL
-       (SELECT 'expense', id, amount, expense_date, purpose || ' — ' || taken_by, created_at FROM expenses)
+       (SELECT 'expense', id, amount, expense_date, purpose || ' — ' || taken_by,
+               NULL, NULL, created_at FROM expenses)
        UNION ALL
-       (SELECT 'fuel', id, amount, expense_date, 'Fuel expense', created_at FROM fuel_expenses)
-       ORDER BY created_at DESC LIMIT 12`
+       (SELECT 'fuel', id, amount, expense_date, 'Fuel expense',
+               NULL, NULL, created_at FROM fuel_expenses)
+       UNION ALL
+       (SELECT 'mechanical', id, amount, expense_date, purpose,
+               NULL, NULL, created_at FROM van_mechanical)
+       UNION ALL
+       (SELECT 'department', de.id, de.amount, de.expense_date, d.name,
+               d.id, 'expenses', de.created_at
+        FROM department_expenses de
+        JOIN departments d ON d.id = de.department_id
+        WHERE de.purchase_id IS NULL)
+       UNION ALL
+       (SELECT 'department', p.id, p.amount, p.purchase_date, d.name,
+               d.id, 'purchases', p.created_at
+        FROM department_purchases p
+        JOIN departments d ON d.id = p.department_id)
+       ORDER BY created_at DESC LIMIT 40`
     );
 
     res.json({
       today: {
         income: Number(todayIncome.t),
-        expense: Number(todayExpense.t),
-        net: Number(todayIncome.t) - Number(todayExpense.t),
+        expense: todayExpense,
+        net: Number(todayIncome.t) - todayExpense,
       },
       month: {
         income: Number(monthIncome.t),
-        expense: Number(monthExpense.t),
-        net: Number(monthIncome.t) - Number(monthExpense.t),
+        expense: monthExpense,
+        net: Number(monthIncome.t) - monthExpense,
       },
       fuel: {
-        income: Number(fuelIn.t),
-        expenses: Number(fuelOut.t),
-        balance: Number(fuelIn.t) - Number(fuelOut.t),
+        month_spent: fuelMonth,
+        expenses: fuelMonth,
       },
-      mechanical_month: Number(mechMonth.t),
+      mechanical_month: mechMonth,
       active_vans: vans.t,
       recent,
     });
@@ -85,7 +134,7 @@ router.get('/search', async (req, res) => {
     if (!q || q.length < 2) return res.json({ results: [] });
     const like = `%${q}%`;
 
-    const [income, expenses, mechanical, fuel, vans] = await Promise.all([
+    const [income, expenses, mechanical, fuel, vans, deptExp] = await Promise.all([
       pool.query(
         `SELECT id, amount, income_date AS date, purpose, category, 'income' AS type
          FROM income WHERE purpose ILIKE $1 OR category ILIKE $1 OR received_from ILIKE $1 OR notes ILIKE $1
@@ -117,6 +166,13 @@ router.get('/search', async (req, res) => {
          WHERE name ILIKE $1 OR plate_number ILIKE $1 OR van_type ILIKE $1 LIMIT 20`,
         [like]
       ),
+      pool.query(
+        `SELECT de.id, de.amount, de.expense_date AS date, de.purpose, de.taken_by, d.name AS department, 'department' AS type
+         FROM department_expenses de JOIN departments d ON d.id = de.department_id
+         WHERE d.name ILIKE $1 OR de.purpose ILIKE $1 OR de.taken_by ILIKE $1 OR de.notes ILIKE $1
+         ORDER BY de.expense_date DESC LIMIT 40`,
+        [like]
+      ),
     ]);
 
     res.json({
@@ -127,6 +183,7 @@ router.get('/search', async (req, res) => {
         ...mechanical.rows,
         ...fuel.rows,
         ...vans.rows,
+        ...deptExp.rows,
       ],
     });
   } catch (err) {

@@ -4,6 +4,7 @@ import { Trash2 } from 'lucide-react';
 import { api } from '../api';
 import { formatUGX, todayISO } from '../config/school';
 import PeriodFilter, { filterFromSearchParams, periodParams } from '../components/PeriodFilter';
+import ViewReportButton from '../components/ViewReportButton';
 import { useAuth } from '../context/AuthContext';
 
 export default function Mechanical() {
@@ -59,9 +60,17 @@ export default function Mechanical() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="page-title">Van mechanical</h2>
-        <p className="muted mt-1">Repairs and maintenance per van — amount, type of work, purpose and date.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="page-title">Van mechanical</h2>
+          <p className="muted mt-1">
+            Repairs and maintenance per van — also included in school Expenses and the full finance workbook.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <ViewReportButton type="mechanical" filter={filter} vanId={vanId} label="View report" />
+          <ViewReportButton type="all" filter={filter} vanId={vanId} label="Full workbook" className="btn-primary" />
+        </div>
       </div>
 
       <PeriodFilter value={filter} onChange={setFilter} />
@@ -116,45 +125,51 @@ export default function Mechanical() {
           </form>
         )}
 
-        <div className={`card p-5 overflow-x-auto ${canEdit ? 'lg:col-span-3' : ''}`}>
+        <div className={`card p-5 flex flex-col ${canEdit ? 'lg:col-span-3' : ''}`}>
           {!canEdit && error && <p className="text-sm text-red-600 mb-3">{error}</p>}
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Van</th>
-                <th>Purpose</th>
-                <th>Amount</th>
-                {canEdit && <th></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td>{String(r.expense_date).slice(0, 10)}</td>
-                  <td>
-                    <div className="font-medium">{r.van_name}</div>
-                    <div className="text-xs muted">{r.plate_number}</div>
-                  </td>
-                  <td>
-                    <div>{r.purpose}</div>
-                    {r.work_type && <div className="text-xs muted">{r.work_type}</div>}
-                  </td>
-                  <td className="font-semibold">{formatUGX(r.amount)}</td>
-                  {canEdit && (
-                    <td>
-                      <button type="button" className="btn-ghost px-2 text-red-600" onClick={() => api.mechanical.remove(r.id).then(load).catch((e) => setError(e.message))}>
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  )}
+          <div className="flex justify-between items-center mb-3 shrink-0">
+            <h3 className="font-semibold">Records</h3>
+            <p className="text-sm font-semibold">{formatUGX(rows.reduce((s, r) => s + Number(r.amount || 0), 0))}</p>
+          </div>
+          <div className="records-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Van</th>
+                  <th>Purpose</th>
+                  <th>Amount</th>
+                  {canEdit && <th></th>}
                 </tr>
-              ))}
-              {!rows.length && (
-                <tr><td colSpan={canEdit ? 5 : 4} className="muted text-center py-8">No mechanical costs in this filter.</td></tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id}>
+                    <td>{String(r.expense_date).slice(0, 10)}</td>
+                    <td>
+                      <div className="font-medium">{r.van_name}</div>
+                      <div className="text-xs muted">{r.plate_number}</div>
+                    </td>
+                    <td>
+                      <div>{r.purpose}</div>
+                      {r.work_type && <div className="text-xs muted">{r.work_type}</div>}
+                    </td>
+                    <td className="font-semibold">{formatUGX(r.amount)}</td>
+                    {canEdit && (
+                      <td>
+                        <button type="button" className="btn-ghost px-2 text-red-600" onClick={() => api.mechanical.remove(r.id).then(load).catch((e) => setError(e.message))}>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {!rows.length && (
+                  <tr><td colSpan={canEdit ? 5 : 4} className="muted text-center py-8">No mechanical costs in this filter.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

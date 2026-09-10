@@ -4,11 +4,20 @@ import { ChevronRight } from 'lucide-react';
 import { api } from '../api';
 import { formatUGX, todayISO } from '../config/school';
 
-function recentTo(kind, date) {
-  const d = date ? String(date).slice(0, 10) : todayISO();
-  if (kind === 'income') return `/income?period=daily&date=${d}`;
-  if (kind === 'expense') return `/expenses?period=daily&date=${d}`;
-  if (kind === 'fuel') return '/fuel';
+function recentTo(r) {
+  const d = r.d ? String(r.d).slice(0, 10) : todayISO();
+  if (r.kind === 'income') return `/income?period=daily&date=${d}`;
+  if (r.kind === 'expense') return `/expenses?period=daily&date=${d}`;
+  if (r.kind === 'fuel') return `/fuel?period=daily&date=${d}`;
+  if (r.kind === 'mechanical') return `/mechanical?period=daily&date=${d}`;
+  if (r.kind === 'department') {
+    const id = r.department_id;
+    const tab = r.tab || 'expenses';
+    const q = new URLSearchParams({ period: 'daily', date: d });
+    if (id) q.set('department_id', String(id));
+    if (tab) q.set('tab', tab);
+    return `/departments?${q.toString()}`;
+  }
   return '/search';
 }
 
@@ -47,8 +56,8 @@ export default function Dashboard() {
     },
     {
       label: 'Net today',
-      value: formatUGX(data.today.net),
-      tone: '',
+      value: formatUGX(data.today.income),
+      tone: 'text-emerald-700',
       to: `/income?period=daily&date=${today}`,
       hint: 'Income for today (see Expenses for outgoings)',
     },
@@ -67,16 +76,16 @@ export default function Dashboard() {
       hint: 'Open this month’s expenses',
     },
     {
-      label: 'Fuel fund balance',
-      value: formatUGX(data.fuel.balance),
-      tone: '',
-      to: '/fuel',
-      hint: 'Fuel income & expenses',
+      label: 'Fuel spent (month)',
+      value: formatUGX(data.fuel?.month_spent ?? data.fuel?.expenses),
+      tone: 'text-red-700',
+      to: `/fuel?period=monthly&month=${month}&year=${year}`,
+      hint: 'Fuel expenses this month',
     },
     {
       label: 'Mechanical (month)',
       value: formatUGX(data.mechanical_month),
-      tone: '',
+      tone: 'text-red-700',
       to: `/mechanical?period=monthly&month=${month}&year=${year}`,
       hint: 'Mechanical work this month',
     },
@@ -118,19 +127,20 @@ export default function Dashboard() {
             <Link to="/income" className="btn-primary">Income</Link>
             <Link to="/expenses" className="btn-secondary">Expenses</Link>
             <Link to="/fuel" className="btn-ghost">Fuel desk</Link>
+            <Link to="/departments" className="btn-ghost">Departments</Link>
             <Link to="/mechanical" className="btn-ghost">Mechanical</Link>
             <Link to="/reports" className="btn-ghost">Excel reports</Link>
           </div>
         </div>
-        <div className="card p-5">
-          <h3 className="font-semibold mb-3">Recent activity</h3>
-          <ul className="space-y-1">
+        <div className="card p-5 flex flex-col">
+          <h3 className="font-semibold mb-3 shrink-0">Recent activity</h3>
+          <ul className="space-y-1 records-scroll">
             {(data.recent || []).map((r) => {
               const date = r.d ? String(r.d).slice(0, 10) : '';
               return (
                 <li key={`${r.kind}-${r.id}`}>
                   <Link
-                    to={recentTo(r.kind, r.d)}
+                    to={recentTo(r)}
                     className="flex justify-between gap-3 text-sm border-b border-[var(--theme-border)] py-2.5 hover:bg-[var(--theme-bg)] -mx-2 px-2 rounded-lg transition"
                   >
                     <span className="min-w-0">

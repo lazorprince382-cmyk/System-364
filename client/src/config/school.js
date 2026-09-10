@@ -7,5 +7,6 @@ export const SCHOOL = {
   logoUrl: '/images/school-logo.png',
   loginCampusUrl: '/images/login-campus.png',
   staffTeamUrl: '/images/staff-team.png',
+  campusUrl: '/images/school-campus.jpg',
   deskTitle: 'Uniform Desk',
 };

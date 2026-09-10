@@ -30,7 +30,7 @@ export default function Login() {
   return (
     <div className="system-login-page">
       <div className="system-login-bg" aria-hidden>
-        <img src={SCHOOL.staffTeamUrl} alt="" className="system-login-bg-img" />
+        <img src={`${SCHOOL.campusUrl}?v=2`} alt="" className="system-login-bg-img" />
         <div className="system-login-bg-blur" />
       </div>
       <a href={import.meta.env.VITE_PORTAL_URL || 'http://localhost:3000/portal'} className="system-login-back">
