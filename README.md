@@ -30,6 +30,18 @@ npm run dev
 
 Open **http://localhost:3000/portal**.
 
+### Already deployed? (pull into existing system)
+
+The machine is already connected to this repo and has live data — **do not** run `npm run setup`.
+
+```bash
+cd /path/to/System-364
+npm run update
+pm2 restart all   # or your normal restart
+```
+
+See **[UPDATE-FROM-GITHUB.md](UPDATE-FROM-GITHUB.md)**.
+
 ### Manual steps (same as setup)
 
 ```bash
