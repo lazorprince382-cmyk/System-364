@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Bus, ChefHat, Shirt, Wallet } from 'lucide-react';
+import { ArrowRight, Bus, ChefHat, Landmark, Shirt, Wallet } from 'lucide-react';
 import { SCHOOL } from '../config/school';
 
 const kitchenEnvUrl = import.meta.env.VITE_KITCHEN_URL;
@@ -24,6 +24,18 @@ const FINANCE_BASE_URL = isValidFinanceUrl
   : window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:3010'
     : `${window.location.origin}/finance`;
+
+const saccoEnvUrl = import.meta.env.VITE_SACCO_URL;
+const saccoUrlCandidate = saccoEnvUrl && String(saccoEnvUrl).trim();
+const isValidSaccoUrl =
+  saccoUrlCandidate &&
+  !saccoUrlCandidate.includes('your-app') &&
+  /^https?:\/\//.test(saccoUrlCandidate);
+const SACCO_BASE_URL = isValidSaccoUrl
+  ? saccoUrlCandidate.replace(/\/+$/, '')
+  : window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3020'
+    : `${window.location.origin}/sacco`;
 
 const SYSTEMS = [
   {
@@ -50,6 +62,14 @@ const SYSTEMS = [
     loginTo: '/login?system=finance',
     accent: '#c41e3a',
   },
+  {
+    id: 'sacco',
+    title: 'Ocean SACCO',
+    subtitle: 'Members, savings & credits',
+    icon: Landmark,
+    loginTo: '/login?system=sacco',
+    accent: '#152a5e',
+  },
 ];
 
 async function ping(url, service) {
@@ -73,21 +93,24 @@ export default function Portal() {
     uniform: 'checking',
     kitchen: 'checking',
     finance: 'checking',
+    sacco: 'checking',
   });
 
   useEffect(() => {
     let alive = true;
     const check = async () => {
-      const [u, k, f] = await Promise.all([
+      const [u, k, f, s] = await Promise.all([
         ping('/api/health'),
         ping(`${KITCHEN_BASE_URL}/api/health`, 'kitchen'),
         ping(`${FINANCE_BASE_URL}/api/health`, 'finance'),
+        ping(`${SACCO_BASE_URL}/api/health`, 'sacco'),
       ]);
       if (!alive) return;
       setHealth({
         uniform: u ? 'online' : 'offline',
         kitchen: k ? 'online' : 'offline',
         finance: f ? 'online' : 'offline',
+        sacco: s ? 'online' : 'offline',
       });
     };
     check();
@@ -148,7 +171,7 @@ export default function Portal() {
 
         <p className="portal-foot">
           <Bus className="w-4 h-4 inline-block mr-1 opacity-70" aria-hidden />
-          Uniform · Kitchen · Finance — one school portal
+          Uniform · Kitchen · Finance · SACCO — one school portal
         </p>
       </div>
     </div>

@@ -9,7 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const pkgDir = 'utils-merge';
 const src = path.join(root, 'vendor', pkgDir);
 
-const workspaces = ['server', 'kitchen', 'finance/server'];
+const workspaces = ['server', 'kitchen', 'finance/server', 'sacco/server'];
 
 if (!fs.existsSync(path.join(src, 'package.json'))) {
   console.error(`Missing vendored package: vendor/${pkgDir}/package.json`);

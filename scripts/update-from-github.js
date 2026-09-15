@@ -55,6 +55,8 @@ if (!skipBuild) {
   run(npmCmd, ['run', 'build'], path.join(root, 'client'));
   console.log('\nBuild Finance UI…');
   run(npmCmd, ['run', 'build'], path.join(root, 'finance/client'));
+  console.log('\nBuild SACCO UI…');
+  run(npmCmd, ['run', 'build'], path.join(root, 'sacco/client'));
 } else {
   console.log('Skipping UI builds (--no-build)');
 }

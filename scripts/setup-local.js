@@ -63,6 +63,9 @@ copyEnv('finance/server/.env.example', 'finance/.env');
 copyEnv('kitchen/.env.example', 'kitchen/.env');
 copyEnv('client/.env.example', 'client/.env');
 copyEnv('finance/client/.env.example', 'finance/client/.env');
+copyEnv('sacco/server/.env.example', 'sacco/server/.env');
+copyEnv('sacco/server/.env.example', 'sacco/.env');
+copyEnv('sacco/client/.env.example', 'sacco/client/.env');
 
 console.log('\nInstall dependencies…');
 run(npmCmd, ['run', 'install:all']);
@@ -72,6 +75,9 @@ run(npmCmd, ['run', 'db:setup']);
 
 console.log('\nCreate / update Finance database (includes departments)…');
 run(npmCmd, ['run', 'db:setup:finance']);
+
+console.log('\nCreate / update Ocean SACCO database…');
+run(npmCmd, ['run', 'db:setup:sacco']);
 
 if (existsSync(path.join(root, 'kitchen/scripts/init-db.js'))) {
   console.log('\nCreate / update Kitchen database…');
@@ -85,6 +91,7 @@ Setup finished.
 1) Edit passwords if needed:
    - server/.env
    - finance/.env  (and/or finance/server/.env)
+   - sacco/.env  (and/or sacco/server/.env)
    - kitchen/.env
 
 2) Start everything:
@@ -96,6 +103,7 @@ Setup finished.
 Sample logins (see README.md):
    Uniform / Finance  bursar@toks.com / admin123
    Kitchen            chef_full / ChefFull1!
+   SACCO              member@toks.com / admin123  (chair@toks.com, treasurer@toks.com)
 
 Do not commit .env files or live school data dumps.
 ────────────────────────────────────────

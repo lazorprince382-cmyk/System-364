@@ -16,7 +16,7 @@ That will:
 
 1. `git pull` from `origin/main`
 2. Reinstall npm packages
-3. Rebuild Uniform + Finance UIs
+3. Rebuild Uniform, Finance, and SACCO UIs
 4. Print how to restart processes
 
 Then restart so the Finance API creates any new tables (e.g. departments) on boot:
@@ -40,12 +40,14 @@ git pull origin main
 npm run install:all
 npm run build --prefix client
 npm run build --prefix finance/client
+npm run build --prefix sacco/client
+npm run db:setup:sacco   # first time only — creates toks_sacco, does not wipe other DBs
 pm2 restart all
 ```
 
 ## Notes
 
-- Keep existing `server/.env`, `finance/.env`, `finance/server/.env`, `kitchen/.env`.
+- Keep existing `server/.env`, `finance/.env`, `finance/server/.env`, `kitchen/.env`, `sacco/.env`.
 - Do **not** run `npm run setup` on production unless you are intentionally resetting local env files.
 - Do **not** import a laptop SQL dump over the live school database.
 - After restart, Finance → **Departments** should appear; schema is applied automatically.

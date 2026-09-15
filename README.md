@@ -9,6 +9,7 @@ One portal at `/portal` lets staff pick a system and sign in:
 | **Uniform Desk** | Inventory, issuances, parents & students | http://localhost:3000 | http://localhost:5000 |
 | **Kitchen System** | Meals, stock & prep | http://localhost:3005 | kitchen API on same app |
 | **Finance Desk** | Income, expenses, departments, vans, mechanical, fuel | http://localhost:3010 | http://localhost:5010 |
+| **Ocean SACCO** | Member savings, loans, chairperson & treasurer credits desk | http://localhost:3020 | http://localhost:5020 |
 
 **Repository:** [github.com/lazorprince382-cmyk/System-364](https://github.com/lazorprince382-cmyk/System-364)
 
@@ -48,6 +49,7 @@ See **[UPDATE-FROM-GITHUB.md](UPDATE-FROM-GITHUB.md)**.
 npm run install:all
 npm run db:setup
 npm run db:setup:finance
+npm run db:setup:sacco
 # Kitchen DB: npm run init-db --prefix kitchen
 npm run dev
 ```
@@ -63,6 +65,9 @@ npm run dev
 | Kitchen (ops) | `chef_ops` | `ChefOps1!` |
 | Kitchen (admin) | `admin` | `KitchenAdmin!` |
 | Finance | `bursar@toks.com` | `admin123` |
+| SACCO (member) | `member@toks.com` | `admin123` |
+| SACCO (chair) | `chair@toks.com` | `admin123` |
+| SACCO (treasurer) | `treasurer@toks.com` | `admin123` |
 
 ## Deploy / npm install
 
@@ -77,6 +82,7 @@ See **[DEPLOY-NPM.md](DEPLOY-NPM.md)** if `npm install` fails on a server (TLS, 
 ├── server/          # Uniform API (Express + PostgreSQL)
 ├── kitchen/         # Kitchen app + API
 ├── finance/         # Finance Desk (client + server)
+├── sacco/           # Ocean SACCO (members, savings, credits desk)
 ├── package.json     # Root scripts (dev all systems)
 └── README.md
 ```
@@ -86,14 +92,16 @@ See **[DEPLOY-NPM.md](DEPLOY-NPM.md)** if `npm install` fails on a server (TLS, 
 ```bash
 npm run setup            # First-time ONLY (new machine) — env + install + empty DBs
 npm run update           # Existing deploy — git pull + install + rebuild (keeps data)
-npm run install:all      # Install root, Uniform, Kitchen, Finance
-npm run dev              # Uniform + Kitchen + Finance together
+npm run install:all      # Install root, Uniform, Kitchen, Finance, SACCO
+npm run dev              # Uniform + Kitchen + Finance + SACCO together
 npm run dev:client       # Portal / Uniform UI only
 npm run dev:server       # Uniform API only
 npm run dev:kitchen      # Kitchen only
 npm run dev:finance      # Finance only
+npm run dev:sacco        # Ocean SACCO only
 npm run db:setup         # Uniform database
 npm run db:setup:finance # Finance database
+npm run db:setup:sacco   # SACCO database
 ```
 
 ## Finance Desk
@@ -105,6 +113,16 @@ Separate bursar app under `finance/`. See [finance/README.md](finance/README.md)
 - **Departments** — department expenses + optional store (purchases / stock / issues)
 - Search + Excel / in-app reports
 - Themes shared with Uniform (`toks-theme`)
+
+## Ocean SACCO
+
+School savings & credit under `sacco/`. See [sacco/README.md](sacco/README.md).
+
+- **Members** — personal dashboard (savings, shares, loans)
+- **Treasurer** — verify deposits, disburse loans, record repayments
+- **Chairperson** — register members, approve loans, credits overview
+
+Ocean navy/red theme. Not the full Credit-and-Debt organisation app.
 
 ## More docs
 

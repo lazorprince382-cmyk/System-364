@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const src = path.join(root, '.npmrc');
-const targets = ['server', 'kitchen', 'client', 'finance', 'finance/server', 'finance/client'];
+const targets = ['server', 'kitchen', 'client', 'finance', 'finance/server', 'finance/client', 'sacco', 'sacco/server', 'sacco/client'];
 
 if (!fs.existsSync(src)) {
   console.warn('No root .npmrc found — skipping copy.');

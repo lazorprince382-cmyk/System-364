@@ -8,6 +8,7 @@ const REMEMBER_KEYS = {
   uniform: 'toks_login_uniform_id',
   kitchen: 'toks_login_kitchen_id',
   finance: 'toks_login_finance_id',
+  sacco: 'toks_login_sacco_id',
 };
 
 /**
@@ -39,6 +40,18 @@ const FINANCE_BASE_URL = isValidFinanceUrl
     ? 'http://localhost:3010'
     : `${window.location.origin}/finance`;
 
+const saccoEnvUrl = import.meta.env.VITE_SACCO_URL;
+const saccoUrlCandidate = saccoEnvUrl && String(saccoEnvUrl).trim();
+const isValidSaccoUrl =
+  saccoUrlCandidate &&
+  !saccoUrlCandidate.includes('your-app') &&
+  /^https?:\/\//.test(saccoUrlCandidate);
+const SACCO_BASE_URL = isValidSaccoUrl
+  ? saccoUrlCandidate.replace(/\/+$/, '')
+  : window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3020'
+    : `${window.location.origin}/sacco`;
+
 const HEALTH_TIMEOUT_MS = 2200;
 
 export default function Login() {
@@ -58,12 +71,14 @@ export default function Login() {
       ? 'Kitchen System'
       : system === 'finance'
         ? 'Finance Desk'
-        : 'Uniform Desk';
+        : system === 'sacco'
+          ? 'Ocean SACCO'
+          : 'Uniform Desk';
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const requested = params.get('system');
-    if (requested === 'kitchen' || requested === 'uniform' || requested === 'finance') {
+    if (requested === 'kitchen' || requested === 'uniform' || requested === 'finance' || requested === 'sacco') {
       setSystem(requested);
       setError('');
     } else {
@@ -84,7 +99,7 @@ export default function Login() {
       setRemember(true);
       return;
     }
-    setEmail(system === 'kitchen' ? 'chef_full' : 'bursar@toks.com');
+    setEmail(system === 'kitchen' ? 'chef_full' : system === 'sacco' ? 'member@toks.com' : 'bursar@toks.com');
   }, [system]);
 
   useEffect(() => {
@@ -124,6 +139,7 @@ export default function Login() {
       if (system === 'uniform') ok = await pingWithTimeout('/api/health');
       else if (system === 'kitchen') ok = await pingServiceApi(KITCHEN_BASE_URL, 'kitchen');
       else if (system === 'finance') ok = await pingServiceApi(FINANCE_BASE_URL, 'finance');
+      else if (system === 'sacco') ok = await pingServiceApi(SACCO_BASE_URL, 'sacco');
       if (!alive) return;
       setSystemOnline(ok ? 'online' : 'offline');
     };
@@ -249,10 +265,43 @@ export default function Login() {
     }
   };
 
+  const doSaccoLogin = async (emailToUse = email) => {
+    setError('');
+    setLoading(true);
+    try {
+      if (systemOnline === 'offline') {
+        throw new Error('SACCO server is offline. Start Ocean SACCO (port 3020/5020) and try again.');
+      }
+      const res = await fetch(`${SACCO_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: String(emailToUse || '').trim(),
+          password,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'SACCO login failed');
+      if (!data.token) throw new Error('SACCO login did not return a token');
+
+      localStorage.setItem('sacco_token', data.token);
+      const key = REMEMBER_KEYS.sacco;
+      if (remember) localStorage.setItem(key, emailToUse);
+      else localStorage.removeItem(key);
+
+      window.location.assign(`${SACCO_BASE_URL}/`);
+    } catch (err) {
+      setError(err.message || 'SACCO login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (system === 'kitchen') doKitchenLogin(email);
     else if (system === 'finance') doFinanceLogin(email);
+    else if (system === 'sacco') doSaccoLogin(email);
     else doLogin(email);
   };
 
