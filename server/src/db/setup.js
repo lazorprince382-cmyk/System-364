@@ -53,41 +53,52 @@ async function setup() {
     const seed = fs.readFileSync(path.join(__dirname, 'seed.sql'), 'utf8');
     await pool.query(seed);
 
-    const hash = await bcrypt.hash('admin123', 10);
-    await pool.query(
-      `UPDATE users SET password_hash = $1 WHERE email IN ('admin@toks.com', 'bursar@toks.com')`,
-      [hash]
-    );
-    await pool.query(
-      `UPDATE users SET full_name = 'School Bursar', email = 'bursar@toks.com' WHERE email = 'admin@toks.com'`
-    );
+    const { rows: existingCatalog } = await pool.query('SELECT COUNT(*)::int AS c FROM products');
+    const liveCatalog = Number(existingCatalog[0]?.c || 0) > 0;
+    const forceCatalog = process.env.FORCE_UNIFORM_CATALOG_SEED === 'true';
 
-    const { rows: cats } = await pool.query('SELECT id, name FROM categories ORDER BY id');
-
-    for (const p of PRODUCTS) {
-      const cat = cats.find((c) => c.name === p.category);
-      await pool.query(
-        `INSERT INTO products (name, sku, category_id, unit_price, current_stock, min_stock_level, image_url, gender)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         ON CONFLICT (sku) DO UPDATE SET
-           name = EXCLUDED.name,
-           category_id = EXCLUDED.category_id,
-           unit_price = EXCLUDED.unit_price,
-           min_stock_level = EXCLUDED.min_stock_level,
-           gender = EXCLUDED.gender`,
-        [
-          p.name,
-          p.sku,
-          cat?.id,
-          p.price,
-          p.stock ?? 0,
-          p.min,
-          p.image || `https://api.dicebear.com/7.x/shapes/svg?seed=${p.sku}`,
-          p.gender || 'unisex',
-        ]
+    if (liveCatalog && !forceCatalog) {
+      console.log(
+        `Skipping Uniform catalog seed — ${existingCatalog[0].c} products already exist. Live stock is left alone.`
       );
+      console.log('Do not run this against production to "fix" products. Restore from a backup instead (RESTORE-UNIFORM.md).');
+    } else {
+      const hash = await bcrypt.hash('admin123', 10);
+      await pool.query(
+        `UPDATE users SET password_hash = $1 WHERE email IN ('admin@toks.com', 'bursar@toks.com')`,
+        [hash]
+      );
+      await pool.query(
+        `UPDATE users SET full_name = 'School Bursar', email = 'bursar@toks.com' WHERE email = 'admin@toks.com'`
+      );
+
+      const { rows: cats } = await pool.query('SELECT id, name FROM categories ORDER BY id');
+
+      for (const p of PRODUCTS) {
+        const cat = cats.find((c) => c.name === p.category);
+        await pool.query(
+          `INSERT INTO products (name, sku, category_id, unit_price, current_stock, min_stock_level, image_url, gender)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           ON CONFLICT (sku) DO UPDATE SET
+             name = EXCLUDED.name,
+             category_id = EXCLUDED.category_id,
+             unit_price = EXCLUDED.unit_price,
+             min_stock_level = EXCLUDED.min_stock_level,
+             gender = EXCLUDED.gender`,
+          [
+            p.name,
+            p.sku,
+            cat?.id,
+            p.price,
+            p.stock ?? 0,
+            p.min,
+            p.image || `https://api.dicebear.com/7.x/shapes/svg?seed=${p.sku}`,
+            p.gender || 'unisex',
+          ]
+        );
+      }
+      console.log('Catalog products seeded:', PRODUCTS.length);
     }
-    console.log('Catalog products seeded:', PRODUCTS.length);
 
     const seedDemoData = process.env.SEED_DEMO_DATA === 'true';
     if (seedDemoData) {

@@ -49,5 +49,7 @@ pm2 restart all
 
 - Keep existing `server/.env`, `finance/.env`, `finance/server/.env`, `kitchen/.env`, `sacco/.env`.
 - Do **not** run `npm run setup` on production unless you are intentionally resetting local env files.
+- Do **not** run `npm run db:setup` or `npm run db:update-catalog` on the live Uniform database. That re-inserts the code catalog (new SKUs / changed names). Finance and SACCO setup do not fix Uniform products.
+- If Uniform products already changed, see **[RESTORE-UNIFORM.md](RESTORE-UNIFORM.md)**.
 - Do **not** import a laptop SQL dump over the live school database.
 - After restart, Finance → **Departments** should appear; schema is applied automatically.

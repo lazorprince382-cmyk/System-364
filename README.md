@@ -47,6 +47,7 @@ See **[UPDATE-FROM-GITHUB.md](UPDATE-FROM-GITHUB.md)**.
 
 ```bash
 npm run install:all
+# First-time empty machines only. Do NOT run Uniform db:setup on a live school DB.
 npm run db:setup
 npm run db:setup:finance
 npm run db:setup:sacco
@@ -99,9 +100,10 @@ npm run dev:server       # Uniform API only
 npm run dev:kitchen      # Kitchen only
 npm run dev:finance      # Finance only
 npm run dev:sacco        # Ocean SACCO only
-npm run db:setup         # Uniform database
+npm run db:setup         # Uniform — FIRST TIME / empty DB only (rewrites catalog)
 npm run db:setup:finance # Finance database
 npm run db:setup:sacco   # SACCO database
+# If Uniform products were overwritten, see RESTORE-UNIFORM.md
 ```
 
 ## Finance Desk

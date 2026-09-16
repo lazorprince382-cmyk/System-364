@@ -79,6 +79,7 @@ Restart your running processes so Finance loads the new Departments schema
   # Unified / Render-style start:
   npm start
 
+Do NOT run npm run db:setup (Uniform) on a live school database.
 Do NOT run a fresh setup or restore a dump unless you intend to replace data.
 Do NOT commit or overwrite production .env files.
 ────────────────────────────────────────
