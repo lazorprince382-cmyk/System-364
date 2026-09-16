@@ -21,9 +21,7 @@ const isValidFinanceUrl =
   /^https?:\/\//.test(financeUrlCandidate);
 const FINANCE_BASE_URL = isValidFinanceUrl
   ? financeUrlCandidate.replace(/\/+$/, '')
-  : window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:3010'
-    : `${window.location.origin}/finance`;
+  : `${window.location.origin}/finance`;
 
 const saccoEnvUrl = import.meta.env.VITE_SACCO_URL;
 const saccoUrlCandidate = saccoEnvUrl && String(saccoEnvUrl).trim();
@@ -33,9 +31,7 @@ const isValidSaccoUrl =
   /^https?:\/\//.test(saccoUrlCandidate);
 const SACCO_BASE_URL = isValidSaccoUrl
   ? saccoUrlCandidate.replace(/\/+$/, '')
-  : window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:3020'
-    : `${window.location.origin}/sacco`;
+  : `${window.location.origin}/sacco`;
 
 const SYSTEMS = [
   {
