@@ -1,4 +1,8 @@
-const API = '/api';
+// import.meta.env.BASE_URL is Vite's configured `base` (see vite.config.js):
+// `/finance/` in production (VITE_BASE, so this resolves under the
+// gateway's /finance mount) and `/` in local dev (where the dev server
+// proxies /api straight to this app's own backend).
+const API = `${import.meta.env.BASE_URL}api`;
 
 function getToken() {
   return localStorage.getItem('finance_token');
