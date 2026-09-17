@@ -4,7 +4,7 @@ export const PRODUCT_GENDER_BY_SKU = {
   'US-BSK': 'girl',
   'US-DRS': 'girl',
   'US-SHT': 'boy',
-  'SP-YTS': 'unisex',
+  'BELTS-MTR0MDB4': 'unisex',
   'SP-BTS': 'unisex',
   'SP-WTS': 'unisex',
   'SP-OTS': 'unisex',

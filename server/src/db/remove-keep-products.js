@@ -2,29 +2,47 @@ import pool from './pool.js';
 import { PRODUCTS } from '../config/uniformCatalog.js';
 
 const apply = process.argv.includes('--apply');
+const extraRemoveSkus = ['SP-YTS'];
+
+function isProtected(row) {
+  return /^belt/i.test(String(row.name || '')) || /^BELTS/i.test(String(row.sku || ''));
+}
 
 async function run() {
   const catalogSkus = PRODUCTS.map((p) => p.sku);
-  const { rows } = await pool.query(
+  const { rows: all } = await pool.query(
     `SELECT p.id, p.sku, p.name, p.current_stock,
             COALESCE((SELECT SUM(quantity) FROM inventory_stock s WHERE s.product_id = p.id), 0)::int AS size_qty,
             EXISTS (SELECT 1 FROM order_items oi WHERE oi.product_id = p.id) AS has_orders
      FROM products p
-     WHERE NOT (p.sku = ANY($1::text[]))
-     ORDER BY p.name`,
-    [catalogSkus]
+     ORDER BY p.name`
   );
 
+  const catalogSet = new Set(catalogSkus);
+  const extraSet = new Set(extraRemoveSkus);
+  const rows = all.filter(
+    (r) => !isProtected(r) && (!catalogSet.has(r.sku) || extraSet.has(r.sku))
+  );
+  const kept = all.filter((r) => isProtected(r));
+
+  if (kept.length) {
+    console.log('Protected (school stock — will not delete):');
+    kept.forEach((r) =>
+      console.log(`  KEEP  ${r.sku}  ${r.name}  stock=${r.current_stock}  sizes=${r.size_qty}`)
+    );
+    console.log('');
+  }
+
   if (!rows.length) {
-    console.log('No KEEP products (SKUs outside the code catalog).');
+    console.log('Nothing to remove.');
     return;
   }
 
   const totalStock = rows.reduce((n, r) => n + Number(r.current_stock || 0), 0);
   console.log(
     apply
-      ? 'Removing KEEP products (not in code catalog):'
-      : 'Dry run — KEEP products that are NOT in the code catalog:'
+      ? 'Removing extra products (not school stock):'
+      : 'Dry run — extra products that will be deleted (Belts stay, Yellow T-Shirt goes):'
   );
   rows.forEach((r) =>
     console.log(

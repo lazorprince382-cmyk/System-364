@@ -53,17 +53,17 @@ export const PRODUCTS = [
     core: true,
     image: '/images/products/beige-shorts.png',
   },
-  // —— Sports Wear ——
   {
-    name: 'Yellow T-Shirt',
-    sku: 'SP-YTS',
-    category: 'Sports Wear',
+    name: 'Belts',
+    sku: 'BELTS-MTR0MDB4',
+    category: 'Uniform Store',
     gender: 'unisex',
-    price: 32000,
+    price: 0,
     stock: 0,
-    min: 20,
+    min: 10,
     core: false,
   },
+  // —— Sports Wear ——
   {
     name: 'Blue T-Shirt',
     sku: 'SP-BTS',
