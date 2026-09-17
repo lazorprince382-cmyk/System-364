@@ -45,6 +45,13 @@ export function productsForStudentGender(products, gender) {
   return products.filter((p) => productMatchesGender(p, g));
 }
 
+/** Belts are Uniform Store stock for every child, not a full-uniform requirement. */
+export function isAlwaysOfferedOnIssue(product) {
+  const sku = String(product?.sku || '');
+  const name = String(product?.name || '');
+  return /^BELTS/i.test(sku) || /^belt/i.test(name);
+}
+
 export function productMatchesGender(product, gender) {
   const g = normalizeGender(gender);
   const pg = productGender(product);

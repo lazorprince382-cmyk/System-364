@@ -6,8 +6,10 @@ import { useAuth } from '../context/AuthContext';
 import SizeInput, { DEFAULT_SIZES } from '../components/SizeInput';
 import {
   evaluateStudentUniform,
+  isAlwaysOfferedOnIssue,
   isProductStillNeeded,
   normalizeGender,
+  productMatchesGender,
   productsForStudentGender,
 } from '../utils/uniformRules';
 
@@ -178,17 +180,28 @@ export default function IssueUniform() {
   const hasFullUniform =
     uniformEvaluation?.status === 'full' || studentUniform?.uniform_status === 'full';
 
+  const productHasStock = (p) => {
+    const sizeTotal = Object.values(stockByProduct[p.id] || {}).reduce((a, b) => a + b, 0);
+    return sizeTotal > 0 || Number(p.current_stock) > 0;
+  };
+
   const productsToShow = useMemo(() => {
     if (!studentId || !uniformEvaluation) return [];
     const gender = student?.gender ?? studentUniform?.gender;
+    const belts = products.filter(
+      (p) => isAlwaysOfferedOnIssue(p) && productMatchesGender(p, gender) && productHasStock(p)
+    );
+
+    const mergeUnique = (list) => {
+      const byId = new Map();
+      for (const p of list) byId.set(p.id, p);
+      return [...byId.values()];
+    };
 
     if (hasFullUniform && extraIssue) {
       const eligible = productsForStudentGender(products, gender);
-      const withStock = eligible.filter((p) => {
-        const total = Object.values(stockByProduct[p.id] || {}).reduce((a, b) => a + b, 0);
-        return total > 0;
-      });
-      return withStock.sort((a, b) => {
+      const withStock = eligible.filter((p) => productHasStock(p));
+      return mergeUnique(withStock.concat(belts)).sort((a, b) => {
         const aPrev = receivedSkus.has(a.sku) ? 0 : 1;
         const bPrev = receivedSkus.has(b.sku) ? 0 : 1;
         if (aPrev !== bPrev) return aPrev - bPrev;
@@ -196,10 +209,12 @@ export default function IssueUniform() {
       });
     }
 
-    if (hasFullUniform) return [];
+    if (hasFullUniform) return belts;
 
-    return products.filter((p) =>
-      isProductStillNeeded(p, uniformEvaluation, receivedSkus, student?.gender)
+    return mergeUnique(
+      products
+        .filter((p) => isProductStillNeeded(p, uniformEvaluation, receivedSkus, student?.gender))
+        .concat(belts)
     );
   }, [
     studentId,
