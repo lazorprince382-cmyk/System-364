@@ -51,6 +51,8 @@ npm run db:report-catalog
 npm run db:sync-stock-from-sizes
 npm run db:remove-unused-catalog
 npm run db:remove-unused-catalog -- --apply
+# if it still says Dry run, the --apply did not reach the script. Use this instead:
+#   cd server && node src/db/remove-unused-catalog.js --apply
 ```
 
 School-only SKUs (not in the code catalog) are never deleted by that script.
