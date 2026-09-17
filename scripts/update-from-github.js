@@ -21,13 +21,13 @@ const npmCmd = isWin ? 'npm.cmd' : 'npm';
 const skipPull = process.argv.includes('--no-pull');
 const skipBuild = process.argv.includes('--no-build');
 
-function run(cmd, args, cwd = root) {
+function run(cmd, args, cwd = root, extraEnv = {}) {
   console.log(`\n> ${cmd} ${args.join(' ')}`);
   const r = spawnSync(cmd, args, {
     cwd,
     stdio: 'inherit',
     shell: isWin,
-    env: process.env,
+    env: { ...process.env, ...extraEnv },
   });
   if (r.status !== 0) process.exit(r.status || 1);
 }
@@ -54,9 +54,9 @@ if (!skipBuild) {
   console.log('\nBuild Uniform portal UI…');
   run(npmCmd, ['run', 'build'], path.join(root, 'client'));
   console.log('\nBuild Finance UI…');
-  run(npmCmd, ['run', 'build'], path.join(root, 'finance/client'));
+  run(npmCmd, ['run', 'build'], path.join(root, 'finance/client'), { VITE_BASE: '/finance/' });
   console.log('\nBuild SACCO UI…');
-  run(npmCmd, ['run', 'build'], path.join(root, 'sacco/client'));
+  run(npmCmd, ['run', 'build'], path.join(root, 'sacco/client'), { VITE_BASE: '/sacco/' });
 } else {
   console.log('Skipping UI builds (--no-build)');
 }

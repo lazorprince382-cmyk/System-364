@@ -20,6 +20,8 @@ const PORT = process.env.PORT || 3000;
 // Proxy config for internal services
 const UNIFORM_API_PORT = process.env.UNIFORM_API_PORT || 5001;
 const KITCHEN_API_PORT = process.env.KITCHEN_API_PORT || 5002;
+const FINANCE_API_PORT = process.env.FINANCE_API_PORT || 5010;
+const SACCO_API_PORT = process.env.SACCO_API_PORT || 5020;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -41,7 +43,7 @@ async function proxyRequest(targetPort, pathPrefix = '') {
       // /api/health reaches this middleware as /health, but the Uniform server
       // actually exposes /api/health. Always start with originalUrl so mounted
       // API prefixes survive proxying. Kitchen is the only service whose public
-      // /kitchen prefix must be stripped before forwarding.
+      // /kitchen prefix must be stripped before forwarding. Same for /finance and /sacco.
       const sourcePath = req.originalUrl;
       const targetPath = pathPrefix && sourcePath.startsWith(pathPrefix)
         ? sourcePath.slice(pathPrefix.length) || '/'
@@ -93,6 +95,8 @@ app.use('/api', await proxyRequest(UNIFORM_API_PORT));
  * would make /kitchen/ fall through to the Uniform React SPA.
  */
 app.use('/kitchen', await proxyRequest(KITCHEN_API_PORT, '/kitchen'));
+app.use('/finance', await proxyRequest(FINANCE_API_PORT, '/finance'));
+app.use('/sacco', await proxyRequest(SACCO_API_PORT, '/sacco'));
 
 /**
  * Serve static frontend (React build)
@@ -105,7 +109,12 @@ app.use(express.static(frontendPath));
  */
 app.get('*', (req, res) => {
   // Don't serve HTML for actual API errors
-  if (req.path.startsWith('/api') || req.path.startsWith('/kitchen')) {
+  if (
+    req.path.startsWith('/api') ||
+    req.path.startsWith('/kitchen') ||
+    req.path.startsWith('/finance') ||
+    req.path.startsWith('/sacco')
+  ) {
     return res.status(404).json({ error: 'Not found' });
   }
   res.sendFile(path.join(frontendPath, 'index.html'));
@@ -131,10 +140,14 @@ app.listen(PORT, () => {
 🌐 Gateway:     http://localhost:${PORT}
 📚 Uniform API: http://localhost:${UNIFORM_API_PORT}
 🍳 Kitchen API: http://localhost:${KITCHEN_API_PORT}
+💼 Finance API: http://localhost:${FINANCE_API_PORT}
+🏦 SACCO API:   http://localhost:${SACCO_API_PORT}
 
 Routing:
   /api/*              → Uniform Backend
   /kitchen/*          → Kitchen Backend (frontend and API)
+  /finance/*          → Finance Backend (frontend and API)
+  /sacco/*            → SACCO Backend (frontend and API)
   /                   → React Frontend
 
   `);

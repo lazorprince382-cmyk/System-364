@@ -16,6 +16,16 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/kitchen/, '') || '/',
       },
+      '/finance': {
+        target: 'http://localhost:5010',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/finance/, '') || '/',
+      },
+      '/sacco': {
+        target: 'http://localhost:5020',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/sacco/, '') || '/',
+      },
     },
   },
 });

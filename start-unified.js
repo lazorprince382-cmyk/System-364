@@ -12,6 +12,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const UNIFORM_PORT = process.env.UNIFORM_API_PORT || 5001;
 const KITCHEN_PORT = process.env.KITCHEN_API_PORT || 5002;
+const FINANCE_PORT = process.env.FINANCE_API_PORT || 5010;
+const SACCO_PORT = process.env.SACCO_API_PORT || 5020;
 const GATEWAY_PORT = process.env.PORT || 3000;
 
 const UNIFORM_DATABASE_URL =
@@ -99,6 +101,10 @@ function startChild(label, command, args, env = {}) {
     if (signal) return;
     if (code && code !== 0) {
       console.error(`${label} exited with code ${code}.`);
+      if (label === 'Finance API' || label === 'SACCO API') {
+        console.error(`${label} failed — Uniform and Kitchen stay up. Check finance/.env or sacco/.env.`);
+        return;
+      }
       shutdown(code);
     }
   });
@@ -119,6 +125,8 @@ async function startServices() {
 Starting Unified System Services
 Uniform API port: ${UNIFORM_PORT}
 Kitchen API port: ${KITCHEN_PORT}
+Finance API port: ${FINANCE_PORT}
+SACCO API port: ${SACCO_PORT}
 Gateway port: ${GATEWAY_PORT}
 Uniform DB URL: ${maskDbUrl(UNIFORM_DATABASE_URL)}
 Kitchen DB URL: ${maskDbUrl(KITCHEN_DATABASE_URL)}
@@ -134,6 +142,8 @@ Shared DB in use: ${UNIFORM_DATABASE_URL === KITCHEN_DATABASE_URL}
     PORT: GATEWAY_PORT,
     UNIFORM_API_PORT: UNIFORM_PORT,
     KITCHEN_API_PORT: KITCHEN_PORT,
+    FINANCE_API_PORT: FINANCE_PORT,
+    SACCO_API_PORT: SACCO_PORT,
   });
 
   try {
@@ -155,6 +165,20 @@ Shared DB in use: ${UNIFORM_DATABASE_URL === KITCHEN_DATABASE_URL}
     startChild('Kitchen API', 'node', ['kitchen/server.js'], {
       PORT: KITCHEN_PORT,
       DATABASE_URL: KITCHEN_DATABASE_URL,
+    });
+
+    startChild('Finance API', 'node', ['finance/server/src/index.js'], {
+      PORT: FINANCE_PORT,
+      ...(process.env.FINANCE_DATABASE_URL
+        ? { DATABASE_URL: process.env.FINANCE_DATABASE_URL }
+        : {}),
+    });
+
+    startChild('SACCO API', 'node', ['sacco/server/src/index.js'], {
+      PORT: SACCO_PORT,
+      ...(process.env.SACCO_DATABASE_URL
+        ? { DATABASE_URL: process.env.SACCO_DATABASE_URL }
+        : {}),
     });
   } catch (err) {
     console.error('Service startup failed:', err.message);
