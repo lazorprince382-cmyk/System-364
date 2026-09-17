@@ -52,15 +52,12 @@ const SACCO_BASE_URL = isValidSaccoUrl
     ? 'http://localhost:3020'
     : `${window.location.origin}/sacco`;
 
-const HEALTH_TIMEOUT_MS = 2200;
-
 export default function Login() {
   const [email, setEmail] = useState('bursar@toks.com');
   const [password, setPassword] = useState('admin123');
   const [remember, setRemember] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [system, setSystem] = useState(null);
-  const [systemOnline, setSystemOnline] = useState('checking');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -102,63 +99,10 @@ export default function Login() {
     setEmail(system === 'kitchen' ? 'chef_full' : system === 'sacco' ? 'member@toks.com' : 'bursar@toks.com');
   }, [system]);
 
-  useEffect(() => {
-    if (!system) return;
-    let alive = true;
-
-    const pingWithTimeout = async (url) => {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), HEALTH_TIMEOUT_MS);
-      try {
-        const res = await fetch(url, { signal: ctrl.signal });
-        return res.ok;
-      } catch {
-        return false;
-      } finally {
-        clearTimeout(t);
-      }
-    };
-
-    const pingServiceApi = async (baseUrl, serviceName) => {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), HEALTH_TIMEOUT_MS);
-      try {
-        const res = await fetch(`${baseUrl}/api/health`, { signal: ctrl.signal });
-        if (!res.ok) return false;
-        const data = await res.json().catch(() => null);
-        return !!(data && (data.status === 'ok' || data.service === serviceName));
-      } catch {
-        return false;
-      } finally {
-        clearTimeout(t);
-      }
-    };
-
-    const check = async () => {
-      let ok = false;
-      if (system === 'uniform') ok = await pingWithTimeout('/api/health');
-      else if (system === 'kitchen') ok = await pingServiceApi(KITCHEN_BASE_URL, 'kitchen');
-      else if (system === 'finance') ok = await pingServiceApi(FINANCE_BASE_URL, 'finance');
-      else if (system === 'sacco') ok = await pingServiceApi(SACCO_BASE_URL, 'sacco');
-      if (!alive) return;
-      setSystemOnline(ok ? 'online' : 'offline');
-    };
-
-    check();
-    const i = setInterval(check, 7000);
-    return () => {
-      alive = false;
-      clearInterval(i);
-    };
-  }, [system]);
-
   const doLogin = async (emailToUse = email) => {
     setError('');
     setLoading(true);
     try {
-      if (systemOnline === 'offline') {
-        throw new Error('Uniform server is offline. Start the server and try again.');
-      }
       await login(emailToUse, password);
       const key = REMEMBER_KEYS.uniform;
       if (remember) localStorage.setItem(key, emailToUse);
@@ -175,10 +119,6 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      if (systemOnline === 'offline') {
-        throw new Error('Kitchen server is offline. Start kitchen system and try again.');
-      }
-      
       const kitchenEndpoint = `${KITCHEN_BASE_URL}/api/auth/login`;
       
       const res = await fetch(kitchenEndpoint, {
@@ -237,9 +177,6 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      if (systemOnline === 'offline') {
-        throw new Error('Finance server is offline. Start Finance Desk (port 3010/5010) and try again.');
-      }
       const res = await fetch(`${FINANCE_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -269,9 +206,6 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      if (systemOnline === 'offline') {
-        throw new Error('SACCO server is offline. Start Ocean SACCO (port 3020/5020) and try again.');
-      }
       const res = await fetch(`${SACCO_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -407,7 +341,7 @@ export default function Login() {
           <button
             type="submit"
             className="login-btn-signin mt-2"
-            disabled={loading || systemOnline === 'offline'}
+            disabled={loading}
           >
             {loading ? 'Signing in…' : 'Sign In'}
             {!loading && <ArrowRight className="w-4 h-4" />}

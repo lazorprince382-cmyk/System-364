@@ -70,9 +70,9 @@ const SYSTEMS = [
 
 async function ping(url, service) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 2200);
+  const t = setTimeout(() => ctrl.abort(), 5000);
   try {
-    const res = await fetch(url, { signal: ctrl.signal });
+    const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
     if (!res.ok) return false;
     if (!service) return true;
     const data = await res.json().catch(() => null);
@@ -110,10 +110,8 @@ export default function Portal() {
       });
     };
     check();
-    const i = setInterval(check, 7000);
     return () => {
       alive = false;
-      clearInterval(i);
     };
   }, []);
 
@@ -136,15 +134,12 @@ export default function Portal() {
         <div className="portal-grid">
           {SYSTEMS.map(({ id, title, subtitle, icon: Icon, loginTo, accent }) => {
             const status = health[id];
-            const offline = status === 'offline';
             return (
               <Link
                 key={id}
-                to={offline ? '#' : loginTo}
-                onClick={(e) => offline && e.preventDefault()}
-                className={`portal-card ${offline ? 'portal-card-offline' : ''}`}
+                to={loginTo}
+                className="portal-card"
                 style={{ '--portal-accent': accent }}
-                aria-disabled={offline}
               >
                 <div className="portal-card-icon">
                   <Icon className="w-7 h-7" strokeWidth={1.75} />
@@ -157,8 +152,8 @@ export default function Portal() {
                   <p>{subtitle}</p>
                 </div>
                 <span className="portal-card-cta">
-                  {offline ? 'Offline' : 'Sign in'}
-                  {!offline && <ArrowRight className="w-4 h-4" />}
+                  Sign in
+                  <ArrowRight className="w-4 h-4" />
                 </span>
               </Link>
             );
