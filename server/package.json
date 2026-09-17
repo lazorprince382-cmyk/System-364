@@ -14,6 +14,7 @@
     "db:report-catalog": "node src/db/report-catalog.js",
     "db:sync-stock-from-sizes": "node src/db/sync-stock-from-sizes.js",
     "db:remove-unused-catalog": "node src/db/remove-unused-catalog.js",
+    "db:remove-keep-products": "node src/db/remove-keep-products.js",
     "db:backup-uniform": "node src/db/backup-uniform.js",
     "db:restore-uniform": "node src/db/restore-uniform.js",
     "db:migrate-sizes": "node src/db/migrate-inventory-sizes.js",

@@ -18,6 +18,7 @@
     "db:report-catalog": "cd server && npm run db:report-catalog",
     "db:sync-stock-from-sizes": "cd server && npm run db:sync-stock-from-sizes",
     "db:remove-unused-catalog": "cd server && npm run db:remove-unused-catalog --",
+    "db:remove-keep-products": "cd server && npm run db:remove-keep-products --",
     "db:backup-uniform": "cd server && npm run db:backup-uniform --",
     "db:restore-uniform": "cd server && npm run db:restore-uniform --",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:kitchen\" \"npm run dev:client\" \"npm run dev:finance\" \"npm run dev:sacco\"",
