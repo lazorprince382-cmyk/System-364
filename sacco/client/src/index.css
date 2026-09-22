@@ -383,3 +383,156 @@ a.metric-card:hover {
   border-color: rgba(252, 165, 165, 0.45) !important;
   color: #fecaca !important;
 }
+
+/* Welfare page */
+.welfare-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.welfare-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.35rem;
+  padding: 1.5rem 1.5rem 1.35rem;
+  color: #fff;
+  background:
+    radial-gradient(600px 180px at 100% 0%, rgba(201, 162, 39, 0.35), transparent 55%),
+    linear-gradient(125deg, #0c1840 0%, #152a5e 55%, #1a3a6e 100%);
+  box-shadow: 0 16px 36px rgba(21, 42, 94, 0.18);
+}
+
+.welfare-hero h2 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(1.45rem, 2.5vw, 1.85rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.welfare-balance-btn {
+  display: block;
+  width: 100%;
+  max-width: 18rem;
+  text-align: left;
+  margin-top: 1rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(8px);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.welfare-balance-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
+}
+
+.welfare-panel {
+  border-radius: 1.25rem;
+  border: 1px solid var(--theme-border, #e8ecf4);
+  background: var(--theme-surface, #fff);
+  box-shadow: 0 10px 28px rgba(21, 42, 94, 0.05);
+  padding: 1.25rem 1.35rem;
+}
+
+.welfare-panel h3 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--theme-primary, #152a5e);
+}
+
+.welfare-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(201, 162, 39, 0.18);
+  color: #8a6d12;
+}
+
+.welfare-badge.posted {
+  background: rgba(16, 185, 129, 0.15);
+  color: #047857;
+}
+
+.welfare-honoree {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--theme-primary) 5%, transparent);
+}
+
+.welfare-honoree-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: #c9a227;
+  flex-shrink: 0;
+}
+
+.welfare-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.welfare-cat-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 2.6rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--theme-border, #e5e7eb);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  background: var(--theme-input-bg, #fff);
+  color: var(--theme-text);
+}
+
+.welfare-cat-chip.active {
+  border-color: var(--theme-primary, #152a5e);
+  background: color-mix(in srgb, var(--theme-primary, #152a5e) 8%, white);
+  color: var(--theme-primary, #152a5e);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--theme-primary) 25%, transparent);
+}
+
+.welfare-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(8, 16, 40, 0.45);
+  padding: 1rem;
+}
+
+@media (min-width: 640px) {
+  .welfare-modal-backdrop {
+    align-items: center;
+  }
+}
+
+.welfare-modal {
+  width: 100%;
+  max-width: 28rem;
+  max-height: 80vh;
+  overflow: auto;
+  border-radius: 1.25rem;
+  background: var(--theme-surface, #fff);
+  padding: 1.25rem;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}

@@ -140,17 +140,12 @@ async function setup() {
     [memberId]
   );
 
-  const seeds = [
-    ['chair@toks.com', 'SACCO Chairperson', 'chairperson', null],
-    ['treasurer@toks.com', 'SACCO Treasurer', 'treasurer', null],
-    ['member@toks.com', 'Sample Staff Member', 'member', memberId],
-  ];
   const { rows: existing2 } = await pool.query(`SELECT id FROM members WHERE member_number = 'TOK-002'`);
   let member2 = existing2[0]?.id;
   if (!member2) {
     const { rows } = await pool.query(
-      `INSERT INTO members (member_number, full_name, phone, email, status)
-       VALUES ('TOK-002', 'Second Staff Member', '0700000001', 'member2@toks.com', 'active')
+      `INSERT INTO members (member_number, full_name, phone, email, status, monthly_salary)
+       VALUES ('TOK-002', 'Second Staff Member', '0700000001', 'member2@toks.com', 'active', 800000)
        RETURNING id`
     );
     member2 = rows[0].id;
@@ -159,12 +154,51 @@ async function setup() {
     `INSERT INTO savings_accounts (member_id) VALUES ($1) ON CONFLICT (member_id) DO NOTHING`,
     [member2]
   );
-  seeds.push(['member2@toks.com', 'Second Staff Member', 'member', member2]);
+
+  // Separate committee seats so officers can also open the member workspace
+  let chairMember = (
+    await pool.query(`SELECT id FROM members WHERE member_number = 'TOK-CHAIR'`)
+  ).rows[0]?.id;
+  if (!chairMember) {
+    const { rows } = await pool.query(
+      `INSERT INTO members (member_number, full_name, phone, email, status, monthly_salary, department, position)
+       VALUES ('TOK-CHAIR', 'SACCO Chairperson', '0700000010', 'chair@toks.com', 'active', 1200000, 'Administration', 'Chairperson')
+       RETURNING id`
+    );
+    chairMember = rows[0].id;
+    await pool.query(`INSERT INTO savings_accounts (member_id) VALUES ($1) ON CONFLICT (member_id) DO NOTHING`, [
+      chairMember,
+    ]);
+  }
+  let treasMember = (
+    await pool.query(`SELECT id FROM members WHERE member_number = 'TOK-TREAS'`)
+  ).rows[0]?.id;
+  if (!treasMember) {
+    const { rows } = await pool.query(
+      `INSERT INTO members (member_number, full_name, phone, email, status, monthly_salary, department, position)
+       VALUES ('TOK-TREAS', 'SACCO Treasurer', '0700000011', 'treasurer@toks.com', 'active', 1100000, 'Administration', 'Treasurer')
+       RETURNING id`
+    );
+    treasMember = rows[0].id;
+    await pool.query(`INSERT INTO savings_accounts (member_id) VALUES ($1) ON CONFLICT (member_id) DO NOTHING`, [
+      treasMember,
+    ]);
+  }
+
+  const seeds = [
+    ['chair@toks.com', 'SACCO Chairperson', 'chairperson', chairMember],
+    ['treasurer@toks.com', 'SACCO Treasurer', 'treasurer', treasMember],
+    ['member@toks.com', 'Sample Staff Member', 'member', memberId],
+    ['member2@toks.com', 'Second Staff Member', 'member', member2],
+  ];
   for (const [email, full_name, role, mid] of seeds) {
     await pool.query(
       `INSERT INTO users (email, full_name, password_hash, role, member_id, active)
        VALUES ($1, $2, $3, $4, $5, true)
-       ON CONFLICT (email) DO NOTHING`,
+       ON CONFLICT (email) DO UPDATE SET
+         member_id = COALESCE(EXCLUDED.member_id, users.member_id),
+         role = EXCLUDED.role,
+         full_name = EXCLUDED.full_name`,
       [email, full_name, hash, role, mid]
     );
   }

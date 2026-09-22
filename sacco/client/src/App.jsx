@@ -15,6 +15,8 @@ import Notifications from './pages/Notifications';
 import Messages from './pages/Messages';
 import Welfare from './pages/Welfare';
 import Approvals from './pages/Approvals';
+import Accounts from './pages/Accounts';
+import Payroll from './pages/Payroll';
 
 function Private({ children }) {
   const { user, loading } = useAuth();
@@ -72,6 +74,22 @@ export default function App() {
           element={
             <OfficerOnly>
               <Savings />
+            </OfficerOnly>
+          }
+        />
+        <Route
+          path="credits/accounts"
+          element={
+            <OfficerOnly>
+              <Accounts />
+            </OfficerOnly>
+          }
+        />
+        <Route
+          path="credits/payroll"
+          element={
+            <OfficerOnly>
+              <Payroll />
             </OfficerOnly>
           }
         />

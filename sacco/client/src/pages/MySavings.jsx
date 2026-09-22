@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { formatUGX, todayISO } from '../config/school';
+import { useAuth } from '../context/AuthContext';
 
 export default function MySavings() {
+  const { workspace } = useAuth();
   const [summary, setSummary] = useState(null);
   const [rows, setRows] = useState([]);
   const [error, setError] = useState('');
@@ -15,12 +17,12 @@ export default function MySavings() {
   });
 
   const load = () => {
-    api.summary().then(setSummary).catch((e) => setError(e.message));
+    api.summary(workspace || 'member').then(setSummary).catch((e) => setError(e.message));
     api.my.savings().then(setRows).catch((e) => setError(e.message));
   };
   useEffect(() => {
     load();
-  }, []);
+  }, [workspace]);
 
   const save = async (e) => {
     e.preventDefault();

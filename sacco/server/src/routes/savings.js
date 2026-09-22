@@ -2,6 +2,7 @@ import { Router } from 'express';
 import pool from '../db/pool.js';
 import { isOfficer, requireOfficer } from '../middleware/auth.js';
 import { notify, notifyOfficers } from '../lib/notify.js';
+import { creditDefaultBank } from '../lib/org-accounts.js';
 
 const router = Router();
 
@@ -31,13 +32,23 @@ router.post('/', async (req, res) => {
     if (!member_id) return res.status(400).json({ error: 'Member is required' });
     const kind = 'savings';
     const amount = money(req.body.amount);
-    const method = String(req.body.method || 'Cash').trim() || 'Cash';
-    const reference = String(req.body.reference || '').trim() || null;
-    const notes = String(req.body.notes || '').trim() || null;
-    const txn_date = req.body.txn_date || new Date().toISOString().slice(0, 10);
     if (!(amount > 0)) return res.status(400).json({ error: 'Amount is required' });
 
     const status = officer && req.body.verify_now ? 'verified' : 'pending';
+    const asOpening = Boolean(officer && (req.body.as_opening || req.body.method === 'Opening balance'));
+    const method = asOpening
+      ? 'Opening balance'
+      : String(req.body.method || 'Cash').trim() || 'Cash';
+    const reference =
+      String(req.body.reference || '').trim() ||
+      (asOpening ? `STANDING-${new Date().toISOString().slice(0, 10)}` : null);
+    const notes =
+      String(req.body.notes || '').trim() ||
+      (asOpening ? 'Carried-forward standing balance at system go-live' : null);
+    const txn_date = req.body.txn_date || new Date().toISOString().slice(0, 10);
+
+    // Opening/standing must be posted verified by desk — it is not a new bank deposit
+    const finalStatus = asOpening ? 'verified' : status;
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -51,14 +62,14 @@ router.post('/', async (req, res) => {
           amount,
           method,
           reference,
-          status,
+          finalStatus,
           notes,
           txn_date,
           req.userDetails.id,
-          status === 'verified' ? req.userDetails.id : null,
+          finalStatus === 'verified' ? req.userDetails.id : null,
         ]
       );
-      if (status === 'verified') {
+      if (finalStatus === 'verified') {
         const col = 'savings_balance';
         await client.query(
           `INSERT INTO savings_accounts (member_id, ${col}, updated_at)
@@ -68,15 +79,31 @@ router.post('/', async (req, res) => {
              updated_at = NOW()`,
           [member_id, amount]
         );
+        // Only real new deposits hit the org bank. Standing balances are already in the bank.
+        if (!asOpening) {
+          await creditDefaultBank(client, {
+            amount,
+            reference,
+            notes: `Verified savings deposit for member #${member_id}`,
+            relatedType: 'savings_transaction',
+            relatedId: rows[0].id,
+            recordedBy: req.userDetails.id,
+          });
+        }
       }
       await client.query('COMMIT');
-      if (status === 'pending') {
-        await notifyOfficers('Deposit pending', `A ${kind} deposit of UGX ${amount.toLocaleString('en-UG')} awaits verification`);
+      if (finalStatus === 'pending') {
+        await notifyOfficers(
+          'Deposit pending',
+          `A ${kind} deposit of UGX ${amount.toLocaleString('en-UG')} awaits verification`
+        );
       } else {
         await notify({
           memberId: member_id,
-          title: 'Savings recorded',
-          message: `UGX ${amount.toLocaleString('en-UG')} was added to your savings balance.`,
+          title: asOpening ? 'Standing balance recorded' : 'Savings recorded',
+          message: asOpening
+            ? `Your carried-forward savings standing of UGX ${amount.toLocaleString('en-UG')} is now on your account.`
+            : `UGX ${amount.toLocaleString('en-UG')} was added to your savings balance.`,
         });
       }
       res.status(201).json(rows[0]);
@@ -135,6 +162,14 @@ router.post('/:id/verify', requireOfficer, async (req, res) => {
          updated_at = NOW()`,
       [txn.member_id, txn.amount]
     );
+    await creditDefaultBank(client, {
+      amount: txn.amount,
+      reference: txn.reference,
+      notes: `Verified savings deposit (#${txn.id})`,
+      relatedType: 'savings_transaction',
+      relatedId: txn.id,
+      recordedBy: req.userDetails.id,
+    });
     await client.query('COMMIT');
     await notify({
       memberId: txn.member_id,

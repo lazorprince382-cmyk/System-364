@@ -1,31 +1,75 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, Landmark, Lock, Mail, UserRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SCHOOL } from '../config/school';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, setWorkspace } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('member@toks.com');
+  const [email, setEmail] = useState('chair@toks.com');
   const [password, setPassword] = useState('admin123');
   const [show, setShow] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pendingUser, setPendingUser] = useState(null);
+
+  const goHome = (user, mode) => {
+    setWorkspace(mode, user);
+    navigate('/');
+  };
 
   const submit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
-      navigate('/');
+      const user = await login(email, password);
+      if (user.dual_role) {
+        setPendingUser(user);
+      } else {
+        goHome(user, user.can_desk ? 'desk' : 'member');
+      }
     } catch (err) {
       setError(err.message || 'Sign in failed');
     } finally {
       setLoading(false);
     }
   };
+
+  if (pendingUser) {
+    return (
+      <div className="system-login-page">
+        <div className="system-login-bg" aria-hidden>
+          <img src={`${SCHOOL.campusUrl}?v=2`} alt="" className="system-login-bg-img" />
+          <div className="system-login-bg-blur" />
+        </div>
+        <div className="system-login-card p-8">
+          <div className="text-center mb-6">
+            <img src={SCHOOL.logoUrl} alt="" className="system-login-logo" />
+            <h1 className="font-display text-2xl font-semibold">Where do you want to go?</h1>
+            <p className="muted text-sm mt-2">
+              {pendingUser.full_name} has both a credits-desk role and a member account.
+            </p>
+          </div>
+          <div className="grid gap-3">
+            <button type="button" className="btn-primary w-full justify-between" onClick={() => goHome(pendingUser, 'desk')}>
+              <span className="flex items-center gap-2">
+                <Landmark className="w-4 h-4" /> Credits desk ({pendingUser.role})
+              </span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button type="button" className="btn-ghost w-full justify-between border" onClick={() => goHome(pendingUser, 'member')}>
+              <span className="flex items-center gap-2">
+                <UserRound className="w-4 h-4" /> Member account
+              </span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="system-login-page">

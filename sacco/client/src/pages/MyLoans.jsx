@@ -21,7 +21,7 @@ const emptyForm = {
 };
 
 export default function MyLoans() {
-  const { user } = useAuth();
+  const { user, workspace } = useAuth();
   const [summary, setSummary] = useState(null);
   const [profile, setProfile] = useState(null);
   const [rows, setRows] = useState([]);
@@ -31,7 +31,7 @@ export default function MyLoans() {
   const [pay, setPay] = useState({ amount: '', method: 'Mobile Money', reference: '' });
 
   const load = () => {
-    api.summary().then(setSummary).catch((e) => setError(e.message));
+    api.summary(workspace || 'member').then(setSummary).catch((e) => setError(e.message));
     api.my.loans().then(setRows).catch((e) => setError(e.message));
     api.members.directory().then(setDirectory).catch(() => {});
     api.my
@@ -45,21 +45,53 @@ export default function MyLoans() {
           contact_number: f.contact_number || p.phone || '',
           email_address: f.email_address || p.login_email || p.email || '',
           employer: f.employer || p.employer || 'The Ocean of Knowledge School',
-          monthly_net_salary: p.monthly_salary || '',
+          monthly_net_salary: p.monthly_salary != null ? String(p.monthly_salary) : '',
         }));
       })
       .catch(() => {});
   };
   useEffect(() => {
     load();
-  }, []);
+  }, [workspace]);
 
   const charge = useMemo(
     () => loanCharge(form.amount, form.repayment_months),
     [form.amount, form.repayment_months]
   );
-  const salary = Number(profile?.monthly_salary || form.monthly_net_salary || 0);
-  const takeHome = Math.max(0, salary - charge.instalment);
+  const netSalary = Math.round(
+    Number(profile?.monthly_salary ?? form.monthly_net_salary ?? summary?.salary ?? 0) || 0
+  );
+  const otherIncome = Math.round(Number(form.other_income) || 0);
+  /** Net salary on record (+ other income on the form) — instalment is deducted from this */
+  const payBase = netSalary + otherIncome;
+  const instalment = Math.round(Number(charge.instalment) || 0);
+  const monthlyReceive = Math.max(0, payBase - instalment);
+
+  const deductionSchedule = useMemo(() => {
+    if (!(Number(form.amount) > 0) || form.repayment_method !== 'Salary Deduction') return [];
+    const months = Math.max(1, Math.round(Number(form.repayment_months) || 1));
+    let left = charge.total;
+    const rows = [];
+    for (let i = 1; i <= months && left > 0; i++) {
+      const due = Math.min(instalment, left);
+      rows.push({
+        month: i,
+        deduction: due,
+        receive: Math.max(0, payBase - due),
+        after: left - due,
+      });
+      left -= due;
+    }
+    return rows;
+  }, [form.amount, form.repayment_months, form.repayment_method, charge.total, instalment, payBase]);
+
+  const activeDeduction = Math.round(
+    Number(summary?.month_instalment ?? summary?.active_loan?.instalment_amount ?? 0) || 0
+  );
+  const activeReceive = Math.max(
+    0,
+    Math.round(Number(summary?.month_take_home ?? netSalary - activeDeduction) || 0)
+  );
 
   const toggleGuarantor = (id) => {
     const sid = String(id);
@@ -109,7 +141,8 @@ export default function MyLoans() {
       <div>
         <h2 className="page-title">My loans</h2>
         <p className="muted mt-1">
-          10% interest is added to every loan. Salary deduction comes off the monthly salary; direct deposit can be paid whenever you deposit.
+          10% interest is added to every loan. With salary deduction, the instalment comes off your{' '}
+          <strong>net salary</strong> so you always see what you will receive each month.
         </p>
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -120,12 +153,28 @@ export default function MyLoans() {
       </div>
 
       {summary?.active_loan?.repayment_method === 'Salary Deduction' && (
-        <div className="card p-5 max-w-lg">
-          <h3 className="font-semibold">Salary deduction</h3>
-          <p className="text-sm mt-1">
-            Monthly instalment {formatUGX(summary.month_instalment || summary.active_loan.instalment_amount)} comes off salary.
-            You will get {formatUGX(summary.month_take_home)} this month. Outstanding {formatUGX(summary.active_loan.outstanding)}.
+        <div className="card p-5 max-w-xl border-l-4 border-l-red-600">
+          <p className="text-[10px] uppercase tracking-wide font-bold text-red-800">This month’s salary deduction</p>
+          <div className="grid grid-cols-3 gap-2 mt-3 text-center text-sm">
+            <div>
+              <p className="text-[10px] uppercase muted">Normal pay</p>
+              <p className="font-semibold">{formatUGX(summary.salary ?? netSalary)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase muted">Deduction (−)</p>
+              <p className="text-xl font-bold text-red-700">− {formatUGX(activeDeduction)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase muted">Salary left</p>
+              <p className="text-xl font-bold text-emerald-700">{formatUGX(activeReceive)}</p>
+            </div>
+          </div>
+          <p className="text-sm mt-3">
+            You normally get {formatUGX(summary.salary ?? netSalary)}. This month {formatUGX(activeDeduction)} comes off
+            for loan {summary.active_loan.reference}, so payroll should pay you{' '}
+            <strong>{formatUGX(activeReceive)}</strong>.
           </p>
+          <p className="text-xs muted mt-2">Outstanding {formatUGX(summary.active_loan.outstanding)}</p>
         </div>
       )}
 
@@ -221,31 +270,138 @@ export default function MyLoans() {
               </div>
               <div>
                 <label className="label">Instalment amount per month</label>
-                <input className="input-field" readOnly value={charge.instalment ? formatUGX(charge.instalment) : ''} />
-                <p className="text-xs muted mt-1">Total to repay {formatUGX(charge.total)} (loan + 10% interest) ÷ {form.repayment_months || '—'} months</p>
+                <input className="input-field" readOnly value={instalment ? formatUGX(instalment) : ''} />
+                <p className="text-xs muted mt-1">
+                  Total owed {formatUGX(charge.total)} (principal plus 10% interest), split over{' '}
+                  {form.repayment_months || '—'} month(s) = {formatUGX(instalment)} deducted each month
+                </p>
               </div>
               <div className="sm:col-span-2">
                 <label className="label">Preferred repayment method</label>
-                <div className="flex gap-4 text-sm mt-1">
+                <div className="flex flex-wrap gap-3 text-sm mt-1">
                   {['Salary Deduction', 'Direct Deposit'].map((m) => (
-                    <label key={m} className="flex items-center gap-2">
-                      <input type="radio" name="repay_method" checked={form.repayment_method === m} onChange={() => setForm({ ...form, repayment_method: m })} />
+                    <label
+                      key={m}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer ${
+                        form.repayment_method === m ? 'border-school-navy bg-school-navy/5 font-medium' : 'border-transparent bg-black/[0.03]'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="repay_method"
+                        checked={form.repayment_method === m}
+                        onChange={() => setForm({ ...form, repayment_method: m })}
+                      />
                       {m}
                     </label>
                   ))}
                 </div>
-                {form.repayment_method === 'Salary Deduction' && Number(form.amount) > 0 && (
-                  <p className="text-sm mt-2">
-                    Salary {formatUGX(salary)} − instalment {formatUGX(charge.instalment)} = you will get{' '}
-                    <strong>{formatUGX(takeHome)}</strong> at the end of each month while this loan is running.
-                    {salary > 0 && charge.instalment >= salary && (
-                      <span className="block text-red-600">Instalment is too high for this salary. Reduce the amount or add months.</span>
+                {form.repayment_method === 'Salary Deduction' && (
+                  <div className="mt-3 rounded-xl border border-school-navy/20 bg-white p-4 space-y-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-school-navy">
+                      Salary deduction plan
+                    </p>
+
+                    {Number(form.amount) > 0 && (
+                      <div className="rounded-xl bg-school-navy/[0.06] border border-school-navy/10 px-4 py-3">
+                        <p className="text-[10px] uppercase tracking-wide muted font-bold">
+                          Loan paid to you (once, when disbursed)
+                        </p>
+                        <p className="text-2xl font-display font-semibold text-school-navy mt-1">
+                          {formatUGX(charge.principal)}
+                        </p>
+                        <p className="text-xs muted mt-1">
+                          You repay {formatUGX(charge.total)} total (includes 10% interest) over{' '}
+                          {form.repayment_months || '—'} month(s).
+                        </p>
+                      </div>
                     )}
-                    {!salary && <span className="block text-red-600">Ask the desk to put your monthly salary on your member record first.</span>}
-                  </p>
+
+                    <div className="rounded-xl border border-red-100 bg-red-50/40 px-4 py-3 space-y-3">
+                      <p className="text-[10px] uppercase tracking-wide font-bold text-red-800">
+                        Each month while the loan runs — taken from your normal pay
+                      </p>
+                      <div className="grid grid-cols-3 gap-2 text-center text-sm">
+                        <div>
+                          <p className="text-[10px] uppercase muted">Normal pay</p>
+                          <p className="font-semibold">{formatUGX(payBase)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase muted">Minus deduction</p>
+                          <p className="font-semibold text-red-700">
+                            − {formatUGX(Number(form.amount) > 0 ? instalment : 0)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase muted">Salary left</p>
+                          <p className="font-bold text-emerald-700">
+                            {formatUGX(Number(form.amount) > 0 ? monthlyReceive : payBase)}
+                          </p>
+                        </div>
+                      </div>
+                      {Number(form.amount) > 0 ? (
+                        <p className="text-sm text-center">
+                          <strong>
+                            {formatUGX(payBase)} − {formatUGX(instalment)} = {formatUGX(monthlyReceive)}
+                          </strong>
+                          <span className="block text-xs muted mt-1">
+                            Same idea as: 500,000 − 5,500 = 494,500. Your normal pay gets smaller by the instalment —
+                            that smaller amount is what you are paid that month.
+                          </span>
+                        </p>
+                      ) : (
+                        <p className="text-sm muted text-center">
+                          Enter the loan amount to see how much comes off your normal pay each month.
+                        </p>
+                      )}
+                    </div>
+
+                    {Number(form.amount) > 0 && deductionSchedule.length > 0 && (
+                      <div
+                        className="overflow-x-auto rounded-lg border"
+                        style={{ borderColor: 'var(--theme-border)' }}
+                      >
+                        <table className="data-table text-xs">
+                          <thead>
+                            <tr>
+                              <th>Month</th>
+                              <th>Normal pay</th>
+                              <th>Deduction (−)</th>
+                              <th>Salary left for you</th>
+                              <th>Loan left</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {deductionSchedule.map((s) => (
+                              <tr key={s.month}>
+                                <td>{s.month}</td>
+                                <td>{formatUGX(payBase)}</td>
+                                <td className="text-red-700 font-semibold">− {formatUGX(s.deduction)}</td>
+                                <td className="text-emerald-700 font-semibold">{formatUGX(s.receive)}</td>
+                                <td>{formatUGX(s.after)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {payBase > 0 && Number(form.amount) > 0 && instalment >= payBase && (
+                      <p className="text-sm text-red-600">
+                        Instalment is too high for your normal pay. Reduce the amount or add months.
+                      </p>
+                    )}
+                    {!netSalary && (
+                      <p className="text-sm text-red-600">
+                        Ask the desk to put your monthly net pay on your member record first.
+                      </p>
+                    )}
+                  </div>
                 )}
                 {form.repayment_method === 'Direct Deposit' && (
-                  <p className="text-sm muted mt-2">You can pay any amount whenever you deposit toward this loan. Nothing is taken from salary.</p>
+                  <p className="text-sm muted mt-2">
+                    You can pay any amount whenever you deposit toward this loan. Nothing is taken from your monthly pay.
+                  </p>
                 )}
               </div>
             </div>
@@ -259,8 +415,12 @@ export default function MyLoans() {
                 <input className="input-field" required value={form.employer} onChange={(e) => setForm({ ...form, employer: e.target.value })} />
               </div>
               <div>
-                <label className="label">Monthly salary (from your record)</label>
-                <input className="input-field" readOnly value={salary ? formatUGX(salary) : 'Not on file'} />
+                <label className="label">Monthly net pay (what you normally get)</label>
+                <input className="input-field" readOnly value={netSalary ? formatUGX(netSalary) : 'Not on file'} />
+                <p className="text-[11px] muted mt-1">
+                  Each month on salary deduction: this pay − instalment = what you receive (e.g. 500,000 − 5,500 =
+                  494,500).
+                </p>
               </div>
               <div>
                 <label className="label">Other income (if any)</label>

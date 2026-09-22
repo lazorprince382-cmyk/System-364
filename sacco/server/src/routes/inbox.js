@@ -1,22 +1,48 @@
 import { Router } from 'express';
 import pool from '../db/pool.js';
-import { isOfficer } from '../middleware/auth.js';
-import { notify, notifyOfficers } from '../lib/notify.js';
+import { notify } from '../lib/notify.js';
 
 const router = Router();
 
+/** List users you can message (everyone active except yourself). */
+router.get('/contacts', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.full_name, u.email, u.role, u.member_id, u.avatar_url, m.member_number
+       FROM users u
+       LEFT JOIN members m ON m.id = u.member_id
+       WHERE u.active = true AND u.id <> $1
+       ORDER BY
+         CASE u.role WHEN 'chairperson' THEN 0 WHEN 'treasurer' THEN 1 ELSE 2 END,
+         u.full_name`,
+      [req.userDetails.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/** Conversation threads for the signed-in user. */
 router.get('/threads', async (req, res) => {
   try {
-    if (!isOfficer(req.userDetails)) {
-      return res.status(403).json({ error: 'Credits desk only' });
-    }
+    const me = req.userDetails.id;
     const { rows } = await pool.query(
-      `SELECT m.id AS member_id, m.full_name, m.member_number,
-              (SELECT body FROM messages WHERE member_id = m.id ORDER BY created_at DESC LIMIT 1) AS last_body,
-              (SELECT created_at FROM messages WHERE member_id = m.id ORDER BY created_at DESC LIMIT 1) AS last_at
-       FROM members m
-       WHERE EXISTS (SELECT 1 FROM messages msg WHERE msg.member_id = m.id)
-       ORDER BY last_at DESC NULLS LAST`
+      `WITH latest AS (
+         SELECT DISTINCT ON (LEAST(sender_id, recipient_id), GREATEST(sender_id, recipient_id))
+           id, sender_id, recipient_id, body, created_at, read_at,
+           CASE WHEN sender_id = $1 THEN recipient_id ELSE sender_id END AS peer_id
+         FROM direct_messages
+         WHERE sender_id = $1 OR recipient_id = $1
+         ORDER BY LEAST(sender_id, recipient_id), GREATEST(sender_id, recipient_id), created_at DESC
+       )
+       SELECT l.*, u.full_name AS peer_name, u.email AS peer_email, u.role AS peer_role, u.avatar_url AS peer_avatar,
+              (SELECT COUNT(*)::int FROM direct_messages d
+               WHERE d.sender_id = l.peer_id AND d.recipient_id = $1 AND d.read_at IS NULL) AS unread
+       FROM latest l
+       JOIN users u ON u.id = l.peer_id
+       ORDER BY l.created_at DESC`,
+      [me]
     );
     res.json(rows);
   } catch (err) {
@@ -26,19 +52,25 @@ router.get('/threads', async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    const officer = isOfficer(req.userDetails);
-    const memberId = officer ? Number(req.query.member_id) : Number(req.userDetails.member_id);
-    if (!memberId) return res.status(400).json({ error: 'Member is required' });
-    if (!officer && memberId !== Number(req.userDetails.member_id)) {
-      return res.status(403).json({ error: 'Not allowed' });
-    }
+    const me = req.userDetails.id;
+    const peerId = Number(req.query.user_id);
+    if (!peerId) return res.status(400).json({ error: 'Pick someone to message' });
     const { rows } = await pool.query(
-      `SELECT msg.*, u.full_name AS sender_name, u.role AS sender_role
-       FROM messages msg
-       JOIN users u ON u.id = msg.sender_id
-       WHERE msg.member_id = $1
-       ORDER BY msg.created_at ASC`,
-      [memberId]
+      `SELECT d.*,
+              s.full_name AS sender_name, s.role AS sender_role, s.avatar_url AS sender_avatar,
+              r.full_name AS recipient_name, r.avatar_url AS recipient_avatar
+       FROM direct_messages d
+       JOIN users s ON s.id = d.sender_id
+       JOIN users r ON r.id = d.recipient_id
+       WHERE (d.sender_id = $1 AND d.recipient_id = $2)
+          OR (d.sender_id = $2 AND d.recipient_id = $1)
+       ORDER BY d.created_at ASC`,
+      [me, peerId]
+    );
+    await pool.query(
+      `UPDATE direct_messages SET read_at = NOW()
+       WHERE sender_id = $1 AND recipient_id = $2 AND read_at IS NULL`,
+      [peerId, me]
     );
     res.json(rows);
   } catch (err) {
@@ -48,28 +80,39 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const officer = isOfficer(req.userDetails);
-    const memberId = officer ? Number(req.body.member_id) : Number(req.userDetails.member_id);
+    const me = req.userDetails.id;
+    const recipientId = Number(req.body.user_id || req.body.recipient_id);
     const body = String(req.body.body || '').trim();
-    if (!memberId || body.length < 1) {
-      return res.status(400).json({ error: 'Write a message' });
+    if (!recipientId || recipientId === me) {
+      return res.status(400).json({ error: 'Choose a recipient' });
     }
-    if (!officer && memberId !== Number(req.userDetails.member_id)) {
-      return res.status(403).json({ error: 'Not allowed' });
-    }
-    const { rows } = await pool.query(
-      `INSERT INTO messages (member_id, sender_id, body) VALUES ($1,$2,$3) RETURNING *`,
-      [memberId, req.userDetails.id, body]
+    if (body.length < 1) return res.status(400).json({ error: 'Write a message' });
+
+    const { rows: peer } = await pool.query(
+      `SELECT id, member_id, full_name FROM users WHERE id = $1 AND active = true`,
+      [recipientId]
     );
-    if (officer) {
+    if (!peer[0]) return res.status(404).json({ error: 'Recipient not found' });
+
+    const { rows } = await pool.query(
+      `INSERT INTO direct_messages (sender_id, recipient_id, body)
+       VALUES ($1,$2,$3) RETURNING *`,
+      [me, recipientId, body]
+    );
+
+    if (peer[0].member_id) {
       await notify({
-        memberId,
-        title: 'New message from credits desk',
+        memberId: peer[0].member_id,
+        title: `Message from ${req.userDetails.full_name}`,
         message: body.slice(0, 240),
       });
     } else {
-      await notifyOfficers('Member message', `${req.userDetails.full_name}: ${body.slice(0, 180)}`);
+      await pool.query(
+        `INSERT INTO notifications (user_id, title, message) VALUES ($1,$2,$3)`,
+        [recipientId, `Message from ${req.userDetails.full_name}`, body.slice(0, 240)]
+      );
     }
+
     res.status(201).json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });

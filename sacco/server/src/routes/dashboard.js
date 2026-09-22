@@ -1,14 +1,19 @@
 import { Router } from 'express';
 import pool from '../db/pool.js';
 import { requireOfficer } from '../middleware/auth.js';
+import { salaryDeductionReceive } from '../lib/salary-deduct.js';
 
 const router = Router();
 
 router.get('/summary', async (req, res) => {
   try {
-    if (req.userDetails.role === 'member') {
-      const mid = req.userDetails.member_id;
-      if (!mid) return res.status(400).json({ error: 'This login is not linked to a member account' });
+    const mid = req.userDetails.member_id;
+    const workspace = String(req.query.workspace || '');
+    const preferMember =
+      workspace === 'member' ||
+      (workspace !== 'desk' && req.userDetails.role === 'member');
+
+    if (mid && preferMember) {
       const [acct, mem, loans, pendingSav, activity, unread, pendingG] = await Promise.all([
         pool.query(
           `SELECT COALESCE(savings_balance,0)::bigint AS savings_balance,
@@ -17,7 +22,9 @@ router.get('/summary', async (req, res) => {
           [mid]
         ),
         pool.query(
-          `SELECT COALESCE(monthly_salary,0)::bigint AS monthly_salary FROM members WHERE id = $1`,
+          `SELECT full_name, member_number, department, position,
+                  COALESCE(monthly_salary,0)::bigint AS monthly_salary
+           FROM members WHERE id = $1`,
           [mid]
         ),
         pool.query(
@@ -55,13 +62,21 @@ router.get('/summary', async (req, res) => {
       );
       const activeLoan = loans.rows.find((l) => ['approved', 'disbursed', 'active'].includes(l.status));
       const displayLoan = activeLoan || runningLoan;
-      const instalment = Number(displayLoan?.instalment_amount || 0);
       const salaryDeduction = displayLoan?.repayment_method === 'Salary Deduction';
-      const monthTakeHome = salaryDeduction
-        ? Math.max(0, salary - Math.min(instalment, Number(displayLoan?.outstanding || instalment)))
-        : salary;
+      // Normal monthly pay − this month's instalment = what they receive (e.g. 500,000 − 5,500 = 494,500)
+      const pay = salaryDeduction
+        ? salaryDeductionReceive(
+            salary,
+            displayLoan?.instalment_amount,
+            displayLoan?.outstanding ?? displayLoan?.instalment_amount
+          )
+        : { normal_pay: salary, deduction: 0, receives: salary };
       return res.json({
         role: 'member',
+        member_number: mem.rows[0]?.member_number || null,
+        member_name: mem.rows[0]?.full_name || req.userDetails.full_name,
+        department: mem.rows[0]?.department || null,
+        position: mem.rows[0]?.position || null,
         savings,
         welfare,
         salary,
@@ -72,11 +87,15 @@ router.get('/summary', async (req, res) => {
         pending_guarantees: pendingG.rows[0].c,
         loans: loans.rows,
         active_loan: activeLoan || null,
-        month_instalment: salaryDeduction ? instalment : 0,
-        month_take_home: displayLoan && salaryDeduction ? monthTakeHome : salary,
+        month_instalment: pay.deduction,
+        month_take_home: pay.receives,
         repayment_method: displayLoan?.repayment_method || null,
         recent: activity.rows,
       });
+    }
+
+    if (!(req.userDetails.role === 'chairperson' || req.userDetails.role === 'treasurer')) {
+      return res.status(400).json({ error: 'This login is not linked to a member account' });
     }
 
     const [members, savings, pendingSav, pendingLoans, awaitingDisburse, outstanding] = await Promise.all([

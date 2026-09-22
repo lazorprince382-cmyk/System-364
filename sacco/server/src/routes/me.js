@@ -11,7 +11,7 @@ router.get('/profile', requireMember, async (req, res) => {
   try {
     const mid = req.userDetails.member_id;
     const { rows } = await pool.query(
-      `SELECT m.*, u.email AS login_email, u.full_name AS login_name,
+      `SELECT m.*, u.email AS login_email, u.full_name AS login_name, u.avatar_url,
               COALESCE(a.savings_balance,0)::bigint AS savings_balance,
               COALESCE(a.shares_balance,0)::bigint AS shares_balance,
               COALESCE(a.welfare_balance,0)::bigint AS welfare_balance
@@ -31,6 +31,8 @@ router.get('/profile', requireMember, async (req, res) => {
 router.patch('/profile', requireMember, async (req, res) => {
   try {
     const mid = req.userDetails.member_id;
+    const uid = req.userDetails.id;
+    const full_name = req.body.full_name != null ? String(req.body.full_name).trim() : undefined;
     const phone = req.body.phone != null ? String(req.body.phone).trim() : undefined;
     const occupation = req.body.occupation != null ? String(req.body.occupation).trim() : undefined;
     const address = req.body.address != null ? String(req.body.address).trim() : undefined;
@@ -39,15 +41,33 @@ router.patch('/profile', requireMember, async (req, res) => {
     const department = req.body.department != null ? String(req.body.department).trim() : undefined;
     const position = req.body.position != null ? String(req.body.position).trim() : undefined;
     const employer = req.body.employer != null ? String(req.body.employer).trim() : undefined;
+    const date_of_birth =
+      req.body.date_of_birth !== undefined
+        ? req.body.date_of_birth
+          ? String(req.body.date_of_birth).slice(0, 10)
+          : null
+        : undefined;
     const { rows: cur } = await pool.query(`SELECT * FROM members WHERE id = $1`, [mid]);
     const m = cur[0];
     if (!m) return res.status(404).json({ error: 'Member not found' });
+    if (full_name !== undefined && full_name.length < 2) {
+      return res.status(400).json({ error: 'Name must be at least 2 characters' });
+    }
+
+    let avatar_url;
+    if (req.body.avatar_data) {
+      const { saveAvatarFromDataUrl } = await import('../lib/avatars.js');
+      avatar_url = saveAvatarFromDataUrl(uid, req.body.avatar_data);
+    }
+
     const { rows } = await pool.query(
       `UPDATE members SET
-         phone = $1, occupation = $2, address = $3, next_of_kin = $4, national_id = $5,
-         department = $6, position = $7, employer = $8
-       WHERE id = $9 RETURNING *`,
+         full_name = $1,
+         phone = $2, occupation = $3, address = $4, next_of_kin = $5, national_id = $6,
+         department = $7, position = $8, employer = $9, date_of_birth = $10
+       WHERE id = $11 RETURNING *`,
       [
+        full_name !== undefined ? full_name : m.full_name,
         phone !== undefined ? phone || null : m.phone,
         occupation !== undefined ? occupation || null : m.occupation,
         address !== undefined ? address || null : m.address,
@@ -56,10 +76,27 @@ router.patch('/profile', requireMember, async (req, res) => {
         department !== undefined ? department || null : m.department,
         position !== undefined ? position || null : m.position,
         employer !== undefined ? employer || null : m.employer,
+        date_of_birth !== undefined ? date_of_birth : m.date_of_birth,
         mid,
       ]
     );
-    res.json(rows[0]);
+
+    if (full_name !== undefined || avatar_url) {
+      await pool.query(
+        `UPDATE users SET
+           full_name = COALESCE($1, full_name),
+           avatar_url = COALESCE($2, avatar_url)
+         WHERE id = $3`,
+        [full_name || null, avatar_url || null, uid]
+      );
+    }
+
+    const { rows: withAvatar } = await pool.query(
+      `SELECT m.*, u.email AS login_email, u.full_name AS login_name, u.avatar_url
+       FROM members m JOIN users u ON u.id = $1 WHERE m.id = $2`,
+      [uid, mid]
+    );
+    res.json(withAvatar[0] || rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

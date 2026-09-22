@@ -15,16 +15,24 @@ import inboxRoutes from './routes/inbox.js';
 import notificationsRoutes from './routes/notifications.js';
 import welfareRoutes from './routes/welfare.js';
 
+import accountsRoutes from './routes/accounts.js';
+import payrollRoutes from './routes/payroll.js';
+import { ensureUploadDirs, UPLOADS_DIR } from './lib/avatars.js';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 5020;
 
+ensureUploadDirs();
+
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '6mb' }));
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'sacco' });
 });
+
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', authenticate, attachUser, dashboardRoutes);
@@ -35,11 +43,13 @@ app.use('/api/me', authenticate, attachUser, meRoutes);
 app.use('/api/messages', authenticate, attachUser, inboxRoutes);
 app.use('/api/notifications', authenticate, attachUser, notificationsRoutes);
 app.use('/api/welfare', authenticate, attachUser, welfareRoutes);
+app.use('/api/accounts', authenticate, attachUser, accountsRoutes);
+app.use('/api/payroll', authenticate, attachUser, payrollRoutes);
 
 const clientDist = path.resolve(__dirname, '../../client/dist');
 app.use(express.static(clientDist));
 app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api')) return next();
+  if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) return next();
   res.sendFile(path.join(clientDist, 'index.html'), (err) => {
     if (err) res.status(404).json({ error: 'SACCO UI not built yet. Run npm run build in sacco/client.' });
   });

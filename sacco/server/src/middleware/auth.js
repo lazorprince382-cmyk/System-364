@@ -21,21 +21,28 @@ export function authenticate(req, res, next) {
 
 export function publicUser(row) {
   if (!row) return null;
+  const role = row.role;
+  const isDesk = role === 'chairperson' || role === 'treasurer';
+  const hasMember = Boolean(row.member_id);
   return {
     id: row.id,
     email: row.email,
     full_name: row.full_name,
-    role: row.role,
+    role,
     member_id: row.member_id,
+    avatar_url: row.avatar_url || null,
     active: row.active !== false,
     created_at: row.created_at,
+    can_desk: isDesk,
+    can_member: hasMember,
+    dual_role: isDesk && hasMember,
   };
 }
 
 export async function attachUser(req, res, next) {
   try {
     const { rows } = await pool.query(
-      `SELECT id, email, full_name, role, member_id, active, created_at FROM users WHERE id = $1`,
+      `SELECT id, email, full_name, role, member_id, avatar_url, active, created_at FROM users WHERE id = $1`,
       [req.user.id]
     );
     if (!rows[0] || !rows[0].active) return res.status(401).json({ error: 'User inactive' });

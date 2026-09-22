@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -17,17 +17,35 @@ import {
   Shield,
   ClipboardList,
   Stamp,
+  BookOpen,
+  ArrowLeftRight,
+  Calculator,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { SCHOOL } from '../config/school';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../api';
+import { api, mediaUrl } from '../api';
+
+function Avatar({ url, name, className = 'w-9 h-9' }) {
+  const initials = String(name || '?')
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() || '')
+    .join('');
+  const src = mediaUrl(url);
+  return (
+    <span className={`${className} rounded-full overflow-hidden bg-white/15 flex items-center justify-center text-xs font-semibold shrink-0`}>
+      {src ? <img src={src} alt="" className="w-full h-full object-cover" /> : initials}
+    </span>
+  );
+}
 
 export default function Layout() {
-  const { user, logout, isOfficer, isMember, isChair } = useAuth();
+  const { user, logout, isOfficer, isMember, isChair, canSwitch, workspace, setWorkspace } = useAuth();
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     api.notifications
@@ -41,6 +59,8 @@ export default function Layout() {
         { to: '/', label: 'Credits desk', icon: LayoutDashboard, end: true },
         { to: '/credits/members', label: 'Members', icon: Users },
         { to: '/credits/savings', label: 'Savings', icon: PiggyBank },
+        { to: '/credits/accounts', label: 'Accounts', icon: BookOpen },
+        { to: '/credits/payroll', label: 'Payroll', icon: Calculator },
         ...(isChair ? [{ to: '/credits/approvals', label: 'Approval', icon: Stamp }] : []),
         { to: '/credits/loans', label: isChair ? 'Loan register' : 'Loans', icon: Banknote },
         { to: '/welfare', label: 'Welfare', icon: Shield },
@@ -68,11 +88,20 @@ export default function Layout() {
   const portal = import.meta.env.VITE_PORTAL_URL || 'http://localhost:3000/portal';
 
   const roleLabel =
-    user?.role === 'chairperson'
-      ? 'Chairperson'
-      : user?.role === 'treasurer'
-        ? 'Treasurer'
-        : 'Member';
+    workspace === 'member'
+      ? 'Member'
+      : user?.role === 'chairperson'
+        ? 'Chairperson'
+        : user?.role === 'treasurer'
+          ? 'Treasurer'
+          : 'Member';
+
+  const switchRole = () => {
+    const next = workspace === 'desk' ? 'member' : 'desk';
+    setWorkspace(next);
+    navigate('/');
+    setOpen(false);
+  };
 
   return (
     <div className="finance-shell flex min-h-screen">
@@ -113,11 +142,22 @@ export default function Layout() {
           ))}
         </nav>
         <div className="p-4 border-t border-white/10 space-y-2">
-          <p className="text-sm font-medium truncate">{user?.full_name}</p>
-          <p className="text-xs text-white/60 truncate">{user?.email}</p>
-          <p className="text-[10px] uppercase tracking-wide text-white/50">{roleLabel}</p>
+          <div className="flex items-center gap-3">
+            <Avatar url={user?.avatar_url} name={user?.full_name} />
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">{user?.full_name}</p>
+              <p className="text-xs text-white/60 truncate">{user?.email}</p>
+              <p className="text-[10px] uppercase tracking-wide text-white/50">{roleLabel}</p>
+            </div>
+          </div>
+          {canSwitch && (
+            <button type="button" onClick={switchRole} className="sacco-switch-ws w-full flex items-center justify-center gap-2">
+              <ArrowLeftRight className="w-3.5 h-3.5" />
+              {workspace === 'desk' ? 'Switch to member' : 'Switch to credits desk'}
+            </button>
+          )}
           <a href={portal} className="sacco-switch-ws">
-            Switch workspace
+            All systems
           </a>
           <button type="button" onClick={signOut} className="btn-ghost w-full border-white/20 text-white hover:bg-white/10">
             <LogOut className="w-4 h-4" /> Log out
@@ -139,7 +179,7 @@ export default function Layout() {
           <button type="button" className="btn-ghost" onClick={() => setOpen(true)}>
             <Menu className="w-4 h-4" />
           </button>
-          <span className="font-semibold text-sm">{SCHOOL.deskTitle}</span>
+          <span className="font-semibold text-sm">{isMember ? 'Member account' : SCHOOL.deskTitle}</span>
           {unread > 0 && <Inbox className="w-4 h-4 ml-auto text-red-600" />}
         </header>
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
