@@ -49,6 +49,11 @@ export default function IssueUniform() {
     api.parents.allStudents().then(setStudents).catch(() => setStudents([]));
   };
 
+  const refreshCatalog = () => {
+    api.products.list().then(setProducts).catch(() => {});
+    api.stock.inventory().then(setInventory).catch(() => {});
+  };
+
   useEffect(() => {
     load();
   }, []);
@@ -57,7 +62,13 @@ export default function IssueUniform() {
     setExtraIssue(false);
     setReplacementReason('');
     setSelected({});
+    // Pick up products / stock added after this page was opened
+    if (studentId) refreshCatalog();
   }, [studentId]);
+
+  useEffect(() => {
+    if (extraIssue) refreshCatalog();
+  }, [extraIssue]);
 
   useEffect(() => {
     if (!studentId) {
@@ -198,24 +209,33 @@ export default function IssueUniform() {
       return [...byId.values()];
     };
 
-    if (hasFullUniform && extraIssue) {
-      const eligible = productsForStudentGender(products, gender);
-      const withStock = eligible.filter((p) => productHasStock(p));
-      return mergeUnique(withStock.concat(belts)).sort((a, b) => {
-        const aPrev = receivedSkus.has(a.sku) ? 0 : 1;
-        const bPrev = receivedSkus.has(b.sku) ? 0 : 1;
-        if (aPrev !== bPrev) return aPrev - bPrev;
-        return (a.category_name || '').localeCompare(b.category_name || '');
+    const sortForIssue = (list) =>
+      [...list].sort((a, b) => {
+        const aHad = receivedSkus.has(a.sku) ? 1 : 0;
+        const bHad = receivedSkus.has(b.sku) ? 1 : 0;
+        // Not-yet-received first (new Yellow T-Shirt for kids who already got other sports wear)
+        if (aHad !== bHad) return aHad - bHad;
+        return (
+          (a.category_name || '').localeCompare(b.category_name || '') || a.name.localeCompare(b.name)
+        );
       });
+
+    // Replacement / re-issue: every gender-matching product in stock (incl. newly added)
+    if (hasFullUniform && extraIssue) {
+      const eligible = productsForStudentGender(products, gender).filter((p) => productHasStock(p));
+      return sortForIssue(mergeUnique(eligible.concat(belts)));
     }
 
     if (hasFullUniform) return belts;
 
-    return mergeUnique(
-      products
-        .filter((p) => isProductStillNeeded(p, uniformEvaluation, receivedSkus, student?.gender))
-        .concat(belts)
+    // First issue or partial: anything still needed, including new SKUs in a category
+    // they already started (e.g. already have Blue T-Shirt; Yellow T-Shirt was added later)
+    const needed = products.filter(
+      (p) =>
+        productHasStock(p) &&
+        isProductStillNeeded(p, uniformEvaluation, receivedSkus, student?.gender)
     );
+    return sortForIssue(mergeUnique(needed.concat(belts)));
   }, [
     studentId,
     uniformEvaluation,

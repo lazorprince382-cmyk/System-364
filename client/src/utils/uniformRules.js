@@ -26,6 +26,10 @@ export const PRODUCT_GENDER_BY_SKU = {
 const OTHER_CATEGORIES = ['Sports Wear', 'Track Suits', 'Sweaters', 'Socks'];
 const GIRL_SKIRT_DRESS_SKUS = ['US-BSK', 'US-DRS'];
 
+export function isOtherIssueCategory(categoryName) {
+  return OTHER_CATEGORIES.includes(categoryName);
+}
+
 export function normalizeGender(value) {
   if (!value) return null;
   const g = String(value).toLowerCase().trim();
@@ -140,13 +144,17 @@ function categoryMatches(productCategory, missingCategory) {
   return false;
 }
 
-/** Show product on Issue Uniform if child still needs it. */
+/** Show product on Issue Uniform if child still needs it (or has not received this SKU yet). */
 export function isProductStillNeeded(product, evaluation, receivedSkus, studentGender = null) {
-  if (!evaluation || evaluation.status === 'full') return false;
-  if (receivedSkus.has(product.sku)) return false;
+  if (!evaluation) return false;
+  // Belts / always-offered handled separately by the Issue page
+  if (receivedSkus.has(product.sku) && !isAlwaysOfferedOnIssue(product)) return false;
 
   const g = normalizeGender(evaluation.gender ?? studentGender);
   if (!productMatchesGender(product, g)) return false;
+
+  // Full kit on record: only replacement flow should list everything (Issue page handles that)
+  if (evaluation.status === 'full') return false;
 
   const stillNeeded =
     evaluation.items_still_needed || evaluation.itemsStillNeeded || [];
@@ -167,6 +175,29 @@ export function isProductStillNeeded(product, evaluation, receivedSkus, studentG
 
   for (const cat of missingCats) {
     if (categoryMatches(product.category_name, cat)) return true;
+  }
+
+  // Already issued something in Sports Wear / Socks / etc., but a newer product
+  // (e.g. Yellow T-Shirt) was added later — still offer any SKU they do not have yet.
+  if (
+    isOtherIssueCategory(product.category_name) &&
+    !receivedSkus.has(product.sku)
+  ) {
+    return true;
+  }
+
+  // Same for Uniform Store extras that are not the core boy/girl set (e.g. belts handled elsewhere)
+  if (
+    product.category_name === 'Uniform Store' &&
+    !receivedSkus.has(product.sku) &&
+    productMatchesGender(product, g)
+  ) {
+    // Core skirt/dress: if they already have one of the pair, don't force the other as "needed"
+    if (GIRL_SKIRT_DRESS_SKUS.includes(product.sku)) {
+      const hasSkirtOrDress = GIRL_SKIRT_DRESS_SKUS.some((s) => receivedSkus.has(s));
+      if (hasSkirtOrDress) return false;
+    }
+    return true;
   }
 
   return false;
